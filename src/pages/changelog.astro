@@ -1,0 +1,150 @@
+---
+import Layout from "../layouts/Layout.astro";
+import * as changelog from "../../CHANGELOG.md";
+---
+
+<Layout>
+  <main class="changelog-page">
+    <a href="/" class="back-link">Back to CitMap</a>
+
+    <header class="hero">
+      <p class="eyebrow">Release notes</p>
+      <h1>Changelog</h1>
+      <p>
+        CitMap is a living document and is updated regularly, especially every
+        term, to reflect latest changes in course offerings, room status, and
+        other relevant information. Aside from the data itself, the website also
+        undergoes improvements to provide a better user experience. Below are
+        the major updates and changes made to CitMap since its initial
+        release.
+      </p>
+    </header>
+    <!-- <main> -->
+    <div set:html={changelog.compiledContent()} class="entries" />
+  </main>
+  <script is:inline>
+    const changelogContainer = document.querySelector("div.entries");
+    const changelogArticles = document.createElement("DIV");
+    let currentArticle = null;
+    changelogContainer.childNodes.forEach((val) => {
+      if (val.nodeName == "H1" || val.nodeName == "H2") {
+        currentArticle = document.createElement("ARTICLE");
+        currentArticle.classList.add("entry");
+        changelogArticles.appendChild(currentArticle);
+      }
+
+      currentArticle.appendChild(changelogContainer.removeChild(val));
+    });
+    changelogContainer.append(...changelogArticles.childNodes);
+    console.log(changelogContainer);
+  </script>
+</Layout>
+
+<style is:global>
+  .changelog-page {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 2rem 1rem 4rem;
+    font-family:
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      Oxygen,
+      Ubuntu,
+      Cantarell,
+      "Open Sans",
+      "Helvetica Neue",
+      sans-serif,
+      "Times New Roman",
+      Times,
+      serif;
+  }
+
+  .back-link {
+    display: inline-flex;
+    margin-bottom: 1.5rem;
+    text-decoration: none;
+    color: hsl(5, 53%, 32%);
+    font-weight: 600;
+  }
+
+  .hero {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .eyebrow,
+  .date,
+  .version {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    color: hsl(0, 0%, 40%);
+  }
+
+  h1 {
+    font-size: clamp(2.25rem, 5vw, 3.5rem);
+    line-height: 1;
+    margin: 0;
+  }
+
+  .hero p:last-child {
+    max-width: 38rem;
+    color: hsl(0, 0%, 30%);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+
+  .entries {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .entry {
+    border: 1px solid hsl(0, 0%, 88%);
+    border-radius: 1.25rem;
+    padding: 1.25rem;
+    background: white;
+    box-shadow: 0 2px 0.5rem 0 hsla(0, 0%, 0%, 0.06);
+    h1,h2 {
+      font-size:1.5rem;
+    }
+    > :is(h3) {
+      margin-block:.5rem;
+    }
+    > :is(h1, h2) {
+      margin-block:1rem;
+    }
+    > ul {
+      margin-bottom:1rem;
+    }
+    h3 {
+      font-size:1rem;
+    }
+  }
+
+  .entry-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: start;
+    margin-bottom: 1rem;
+  }
+
+  ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    color: hsl(0, 0%, 25%);
+    line-height: 1.65;
+  }
+
+  @media screen and (max-width: 600px) {
+    .entry-header {
+      flex-direction: column;
+    }
+  }
+</style>

@@ -1,0 +1,94 @@
+---
+import { pwaInfo } from "virtual:pwa-info";
+import ReloadPrompt from "../components/ReloadPrompt.astro";
+import "../styles/font-face.css";
+import Analytics from "@vercel/analytics/astro";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+    <meta name="theme-color" content="#a30e00" />
+    <meta name="generator" content={Astro.generator} />
+    <title>CitMap</title>
+    <meta
+      name="description"
+      content="CitMap is an offline website built to help CITU students find their rooms across the Cebu Institute of Technology - University campus."
+    />
+
+    <meta property="og:url" content="/" />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:title"
+      content="CitMap"
+    />
+    <meta
+      property="og:description"
+      content="CitMap is an offline website built to help CITU students find their rooms across the Cebu Institute of Technology - University campus."
+    />
+    <meta property="og:image" content="/socmed.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta property="twitter:domain" content="" />
+    <meta property="twitter:url" content="/" />
+    <meta
+      name="twitter:title"
+      content="CitMap utility for finding rooms around CITU"
+    />
+    <meta
+      name="twitter:description"
+      content="CitMap is an offline website built to help CITU students find their rooms across the Cebu Institute of Technology - University campus."
+    />
+    <meta name="twitter:image" content="/socmed.png" />
+    {pwaInfo && <Fragment set:html={pwaInfo.webManifest.linkTag} />}
+    <style is:global>
+      * {
+        font-family:
+          "Inter",
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      button {
+        all: unset;
+      }
+      button,
+      a,
+      input {
+        outline: 2px solid transparent;
+        outline-offset: 2px;
+
+        &:focus-visible {
+          outline-color: hsl(5, 53%, 32%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <slot />
+    <ReloadPrompt />
+    <Analytics />
+  </body>
+</html>
+
+<style>
+  html,
+  body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+  }
+
+  @media only screen and (max-width: 600px) {
+    .container {
+      padding: 1rem;
+    }
+  }
+</style>

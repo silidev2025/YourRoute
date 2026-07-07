@@ -1,0 +1,56 @@
+<script lang="ts">
+  import {
+    getColorForCourse,
+    parseScheduleTime,
+    ScheduleRenderer,
+  } from "../../../lib/schedule-renderer";
+  import type { ClassMapValue } from "../../../lib/types";
+
+  interface Props {
+    roomCode: string;
+    classes: ClassMapValue[];
+  }
+  const { roomCode, classes }: Props = $props();
+  const canvasId = $derived(`schedule-${roomCode}`);
+  const renderer = $derived(
+    new ScheduleRenderer(canvasId, {
+      width: 1000,
+      height: 600,
+    }),
+  );
+  $effect(() => {
+    classes.forEach((sectionClass) => {
+      const schedule: string[] = sectionClass.schedule.split(",");
+      if (schedule.length === 0) return;
+      schedule.forEach((schedStr) => {
+        const parsed = parseScheduleTime(schedStr);
+        if (!parsed) {
+          return;
+        }
+        const color = getColorForCourse(sectionClass.courseCode);
+        const label =
+          sectionClass.courseCode +
+          (sectionClass.type ? " (" + sectionClass.type + ")" : "");
+
+        renderer.addCourse({
+          day: parsed.days,
+          time: parsed.time,
+          courseCode: label,
+          section: sectionClass.section,
+          color,
+        });
+      });
+    });
+  });
+</script>
+
+<canvas id={canvasId}></canvas>
+
+<style>
+  canvas {
+    width: 100%;
+    aspect-ratio: 10/6;
+    overflow: hidden;
+    border-radius: 0.5rem;
+  }
+</style>
