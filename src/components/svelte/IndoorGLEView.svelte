@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { ChevronLeft, ChevronRight, X } from "@lucide/svelte";
+  import { ChevronLeft, ChevronRight, LocateFixed, X } from "@lucide/svelte";
   import * as THREE from "three";
   import { locationStore, navigationStore } from "../../lib/store.svelte";
 
   let container: HTMLDivElement;
+  let cameraMovedByUser = $state(false);
+  let recenterIndoorCamera: (() => void) | null = null;
 
   const FLOOR_HEIGHT = 4.2;
   const FLOOR_COUNT = 8;
@@ -51,6 +53,10 @@
 
   function closeIndoorView() {
     navigationStore.closeIndoorView();
+  }
+
+  function backToCurrentLocation() {
+    recenterIndoorCamera?.();
   }
 
   onMount(() => {
@@ -401,9 +407,12 @@
     window.addEventListener("resize", resize);
 
     let animationFrame = 0;
-    let viewYaw = Math.atan2(6.5, 8.8);
-    let lookHeight = 1.05;
-    let cameraDistance = 11;
+    const defaultViewYaw = Math.atan2(6.5, 8.8);
+    const defaultLookHeight = 1.05;
+    const defaultCameraDistance = 11;
+    let viewYaw = defaultViewYaw;
+    let lookHeight = defaultLookHeight;
+    let cameraDistance = defaultCameraDistance;
     const cameraHeight = 5.3;
     const lookTarget = new THREE.Vector3();
     const desiredCamera = new THREE.Vector3();
@@ -415,6 +424,28 @@
 
     const clamp = (value: number, min: number, max: number) =>
       Math.max(min, Math.min(value, max));
+
+    const markCameraMovedByUser = () => {
+      cameraMovedByUser = true;
+    };
+
+    recenterIndoorCamera = () => {
+      viewYaw = defaultViewYaw;
+      lookHeight = defaultLookHeight;
+      cameraDistance = defaultCameraDistance;
+      cameraMovedByUser = false;
+
+      cameraOffset.set(
+        Math.sin(viewYaw) * cameraDistance,
+        cameraHeight,
+        Math.cos(viewYaw) * cameraDistance,
+      );
+      desiredCamera.copy(avatar.position).add(cameraOffset);
+      camera.position.copy(desiredCamera);
+      lookTarget.copy(avatar.position);
+      lookTarget.y += lookHeight;
+      camera.lookAt(lookTarget);
+    };
 
     const handlePointerDown = (event: PointerEvent) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
@@ -432,6 +463,9 @@
       const deltaY = event.clientY - lastPointerY;
       lastPointerX = event.clientX;
       lastPointerY = event.clientY;
+      if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
+        markCameraMovedByUser();
+      }
 
       viewYaw -= deltaX * 0.006;
       lookHeight = clamp(lookHeight - deltaY * 0.035, 0.55, BUILDING_HEIGHT);
@@ -445,6 +479,7 @@
 
     const handleWheel = (event: WheelEvent) => {
       event.preventDefault();
+      if (Math.abs(event.deltaY) > 1) markCameraMovedByUser();
       cameraDistance = clamp(cameraDistance + event.deltaY * 0.008, 6.5, 24);
     };
 
@@ -496,6 +531,8 @@
       renderer.domElement.removeEventListener("pointerup", handlePointerUp);
       renderer.domElement.removeEventListener("pointercancel", handlePointerUp);
       renderer.domElement.removeEventListener("wheel", handleWheel);
+      recenterIndoorCamera = null;
+      cameraMovedByUser = false;
       renderer.dispose();
       scene.traverse((object) => {
         if (object instanceof THREE.Mesh) {
@@ -519,6 +556,18 @@
 
 <section class="indoor-view" aria-label="GLE 3D indoor navigation">
   <div bind:this={container} class="indoor-canvas"></div>
+
+  {#if cameraMovedByUser}
+    <button
+      type="button"
+      class="recenter-button"
+      onclick={backToCurrentLocation}
+      aria-label="Back to your current location"
+    >
+      <LocateFixed size="18" />
+      <span>Back to Your Current Location</span>
+    </button>
+  {/if}
 
   <div class="indoor-toolbar">
     <div>
@@ -602,6 +651,41 @@
     backdrop-filter: blur(10px);
   }
 
+  .recenter-button {
+    position: fixed;
+    top: 0.75rem;
+    left: 50%;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    width: auto;
+    min-width: 0;
+    max-width: min(23rem, calc(100vw - 2rem));
+    height: 2.55rem;
+    padding: 0 0.9rem;
+    color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+    background: hsl(5, 53%, 32%);
+    border: 1px solid rgba(255, 255, 255, 0.34);
+    border-radius: 999px;
+    box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.2);
+    transform: translateX(-50%);
+  }
+
+  .recenter-button:hover {
+    background: hsl(5, 55%, 27%);
+  }
+
+  .recenter-button span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   .indoor-toolbar > div:first-child {
     min-width: 0;
   }
@@ -633,7 +717,7 @@
     gap: 0.3rem;
   }
 
-  button {
+  .indoor-toolbar__actions button {
     display: grid;
     place-items: center;
     width: 2.25rem;
@@ -645,7 +729,7 @@
     cursor: pointer;
   }
 
-  button:disabled {
+  .indoor-toolbar__actions button:disabled {
     color: #8a8a8a;
     cursor: not-allowed;
     opacity: 0.55;
@@ -659,7 +743,15 @@
       max-width: none;
     }
 
-    button {
+    .recenter-button {
+      top: 4.35rem;
+      max-width: calc(100vw - 1rem);
+      height: 2.4rem;
+      padding: 0 0.75rem;
+      font-size: 0.78rem;
+    }
+
+    .indoor-toolbar__actions button {
       width: 2rem;
       height: 2rem;
     }
