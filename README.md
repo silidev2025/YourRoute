@@ -18,15 +18,50 @@ Course and room listings are maintained for CITU students and updated each term;
 
 ## Development/Contribution
 
-To run locally, you need to download [Bun.js](https://bun.sh/) and run the following command:
+To run locally, install [Bun.js](https://bun.sh/), install dependencies, then start Astro:
 
+```sh
+bun install
+bun run dev
 ```
-bun dev
+
+The app normally opens at `http://localhost:4321`. If that port is already busy, Astro will choose another port.
+
+## Edit From Another Computer
+
+This repository includes a GitHub Codespaces setup, so you can edit the project even when you are not on your laptop.
+
+1. Open `https://github.com/manciafrancisdave/YourRoute`.
+2. Click `Code`.
+3. Open the `Codespaces` tab.
+4. Click `Create codespace on main`.
+5. Wait for setup to finish.
+6. In the Codespaces terminal, run:
+
+```sh
+bun run dev -- --host 0.0.0.0
+```
+
+7. Open the forwarded Astro port, usually `4321`.
+
+When you finish editing from another computer:
+
+```sh
+git status
+git add .
+git commit -m "Describe your change"
+git push origin main
+```
+
+When you return to your laptop, run:
+
+```sh
+git pull origin main
 ```
 
 The data is stored in the info.db file, and may be accessed using sqlite. If you are not familiar with using SQL, you may run the following command to open up drizzle studio and start correcting data:
 
-```
+```sh
 bunx drizzle-kit studio
 ```
 
@@ -42,17 +77,13 @@ This project uses [Astro](https://astro.build), and may have the following folde
 - `/src/assets` - All other internal assets used by the program
 - `/src/lib` - where helper Typescript functions are located
 
-## Releases and versioning
+## GitHub Checks
 
-Versions follow [Semantic Versioning](https://semver.org/). [semantic-release](https://semantic-release.gitbook.io/) runs on every push to `main` (skipping commits that include `[skip ci]`). It reads [Conventional Commits](https://www.conventionalcommits.org/) messages, bumps `package.json`, updates `CHANGELOG.md`, creates a Git tag, and publishes a GitHub release.
+Every push to `main` runs a GitHub Actions build check. The check installs dependencies with Bun and runs:
 
-Use prefixes such as `fix:`, `feat:`, or `feat!:` / `BREAKING CHANGE:` so the next version is chosen correctly. To preview what would ship without changing anything:
-
+```sh
+bun run build
 ```
-bun run release:dry
-```
-
-The footer and status bar show `v{version}` from `package.json` at build time.
 
 ## License
 
