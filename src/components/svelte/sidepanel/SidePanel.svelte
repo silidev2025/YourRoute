@@ -48,6 +48,7 @@
     pointer-events: auto;
     display: flex;
     flex-direction: column;
+    min-height: 0;
     height: 100%;
     flex: 0 0 min(25.75rem, calc(50% - 4rem));
     box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.25);
@@ -74,6 +75,7 @@
       width: 100%;
       max-width: 100%;
       flex: 1;
+      min-height: 0;
       pointer-events: none; /* Let clicks pass through empty space */
       display: flex;
       flex-direction: column;
@@ -82,18 +84,31 @@
     .side-panel-controls {
       flex-direction: column;
       justify-content: flex-end;
-      /* align-items: flex-end; */
+      align-items: flex-end;
+      min-height: 0;
+      gap: 0.75rem;
     }
 
     .side-panel-content {
       width: 100%;
-      flex: 0 0 50%;
+      max-height: min(58dvh, 31rem);
+      min-height: min(17rem, 46dvh);
+      flex: 0 1 auto;
+      padding: 1rem;
+      border-radius: 1.25rem 1.25rem 0.875rem 0.875rem;
+      box-shadow: 0 -0.5rem 1.25rem rgba(0, 0, 0, 0.16);
     }
-    /* .side-panel-content {
-      flex: none;
-      margin-top: auto;
-      max-height: 45vh;
-      box-shadow: 0px -4px 12px rgba(0, 0, 0, 0.1);
-    } */
+  }
+
+  @media screen and (max-width: 30rem) {
+    .side-panel-controls {
+      gap: 0.5rem;
+    }
+
+    .side-panel-content {
+      max-height: min(62dvh, 29rem);
+      min-height: min(16rem, 44dvh);
+      padding: 0.875rem;
+    }
   }
 </style>

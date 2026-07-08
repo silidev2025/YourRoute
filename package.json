@@ -5,8 +5,12 @@
   "license": "MIT",
   "scripts": {
     "dev": "astro dev",
+    "dev:mobile": "astro dev --host 0.0.0.0",
+    "tunnel:cloudflare": "npx cloudflared tunnel --url http://localhost:4321",
     "build": "astro build",
     "preview": "astro preview",
+    "preview:mobile": "astro preview --host 0.0.0.0",
+    "preview:pwa:mobile": "astro build && astro preview --host 0.0.0.0",
     "astro": "astro",
     "lint": "prettier --check . && eslint .",
     "format": "prettier --write .",

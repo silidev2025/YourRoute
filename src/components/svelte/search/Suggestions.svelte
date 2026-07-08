@@ -1,89 +1,71 @@
 <script lang="ts">
-  import { getAppData } from "../../../lib/context";
+  import {
+    CITU_BUILDING_LABELS,
+    getCituBuildingDisplayName,
+    getCituBuildingSearchValues,
+    findCituBuildingLabel,
+  } from "../../../constants/campus";
   import { ROOM_ROUTES } from "../../../constants/room-routes";
   import { queryStore, type QueryStoreState } from "../../../lib/store.svelte";
   import SearchQuerySuggestion from "./SearchQuerySuggestion.svelte";
   import Suggestion from "./Suggestion.svelte";
 
-  const { buildings, colleges, divisions, rooms } = getAppData();
-
-  const suggestedResult = $derived<
-    { value: string; category: Exclude<QueryStoreState["category"], null> }[]
-  >(getSuggestions(queryStore.inputValue));
-
-  function getSuggestions(searchString: string): {
+  type SearchSuggestion = {
     value: string;
     category: Exclude<QueryStoreState["category"], null>;
-  }[] {
+  };
+
+  const CITU_ROOM_CODES = Array.from(
+    new Set([
+      "GLE 201",
+      "RTL 302",
+      "ALLIED 102",
+      ...Object.values(ROOM_ROUTES).map((route) => route.roomCode),
+    ]),
+  );
+
+  const suggestedResult = $derived<SearchSuggestion[]>(
+    getSuggestions(queryStore.inputValue),
+  );
+  const validRecentSearches = $derived(
+    queryStore.recentSearches.filter(isCituSuggestion),
+  );
+
+  function matchesSearch(values: string[], searchString: string) {
+    return values.some((value) => value.toLowerCase().includes(searchString));
+  }
+
+  function isCituSuggestion(suggestion: SearchSuggestion) {
+    if (suggestion.category === "building") {
+      return Boolean(findCituBuildingLabel(suggestion.value));
+    }
+
+    if (suggestion.category === "room") {
+      return CITU_ROOM_CODES.includes(suggestion.value);
+    }
+
+    return false;
+  }
+
+  function getSuggestions(searchString: string): SearchSuggestion[] {
     searchString = searchString.trim().toLowerCase();
     if (searchString === "") return [];
-    const suggestions = {
-      buildings: buildings
-        .filter(({ building_name }) =>
-          building_name.toLowerCase().includes(searchString),
-        )
-        .map(({ building_name }) => ({
-          value: building_name,
-          category: "building",
-        })),
-      colleges: colleges
-        .filter(({ college_name }) =>
-          college_name.toLowerCase().includes(searchString),
-        )
-        .map(({ college_name }) => ({
-          value: college_name,
-          category: "college",
-        })),
-      divisions: divisions
-        .filter(({ division_name }) =>
-          division_name.toLowerCase().includes(searchString),
-        )
-        .map(({ division_name }) => ({
-          value: division_name,
-          category: "division",
-        })),
-    } satisfies {
-      [key: string]: {
-        value: string;
-        category: Exclude<QueryStoreState["category"], null>;
-      }[];
-    };
 
-    const nonRoomResult = Array.from(Object.values(suggestions))
-      .reduce(
-        // @ts-ignore
-        (prev, curr) => [...prev, ...curr],
-        [],
-      )
-      .sort(({ value: a }, { value: b }) =>
-        a.toLowerCase().localeCompare(b.toLowerCase()),
-      );
+    const buildingResult = CITU_BUILDING_LABELS.filter((label) =>
+      matchesSearch(getCituBuildingSearchValues(label), searchString),
+    ).map((label) => ({
+      value: getCituBuildingDisplayName(label),
+      category: "building" as const,
+    }));
 
-    const roomResult = rooms
-      .filter((room) => room.code.toLowerCase().includes(searchString))
-      .map((room) => ({
-        value: room.code,
-        category: "room",
-      })) satisfies {
-      value: string;
-      category: Exclude<QueryStoreState["category"], null>;
-    }[];
+    const roomResult = CITU_ROOM_CODES.filter((roomCode) =>
+      roomCode.toLowerCase().includes(searchString),
+    ).map((roomCode) => ({
+      value: roomCode,
+      category: "room" as const,
+    }));
 
-    const routeRoomResult = Object.values(ROOM_ROUTES)
-      .filter(
-        (route) =>
-          route.roomCode.toLowerCase().includes(searchString) &&
-          !rooms.some((room) => room.code === route.roomCode),
-      )
-      .map((route) => ({
-        value: route.roomCode,
-        category: "room",
-      })) satisfies {
-      value: string;
-      category: Exclude<QueryStoreState["category"], null>;
-    }[];
-
-    return [...nonRoomResult, ...routeRoomResult, ...roomResult].slice(0, 5);
+    return [...buildingResult, ...roomResult].slice(0, 5);
   }
 </script>
 
@@ -93,9 +75,9 @@
   class:force-visible={queryStore.inputValue === ""}
 >
   {#if queryStore.inputValue === ""}
-    {#if queryStore.recentSearches.length !== 0}
+    {#if validRecentSearches.length !== 0}
       <h2 class="suggestions-header">Recent searches</h2>
-      {#each queryStore.recentSearches as { category, value }}
+      {#each validRecentSearches as { category, value }}
         <Suggestion {value} {category} />
       {/each}
     {:else}
@@ -127,6 +109,12 @@
     box-shadow: 0rem 2px 0.25rem 0rem rgba(0, 0, 0, 0.25);
     margin-top: 0.5rem;
     opacity: 0;
+    z-index: 20;
+    max-height: min(22rem, calc(100dvh - 7rem));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(6, 63%, 48%) hsl(0, 0%, 98%);
   }
   .force-visible {
     opacity: 1;
@@ -137,6 +125,12 @@
     margin-bottom: 0.5rem;
   }
   @media (max-width: 425px) {
+    .suggestions-container {
+      padding: 0.75rem;
+      max-height: min(45dvh, 22rem);
+      border-radius: 1rem;
+    }
+
     .suggestions-header {
       margin-bottom: 0.25rem;
     }

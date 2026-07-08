@@ -58,7 +58,10 @@
     top: 50%;
     left: 50%;
     translate: -50% -50%;
-    padding: 0.75rem;
+    padding: calc(0.75rem + env(safe-area-inset-top))
+      calc(0.75rem + env(safe-area-inset-right))
+      calc(0.75rem + env(safe-area-inset-bottom))
+      calc(0.75rem + env(safe-area-inset-left));
     width: 100%;
     height: 100dvh;
     z-index: 100;
@@ -70,13 +73,17 @@
   .modal-content {
     position: relative;
     flex: 0 1 64rem;
-    max-height: 90dvh;
+    width: min(64rem, 100%);
+    max-height: calc(
+      100dvh - 1.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+    );
     background-color: white;
     z-index: inherit;
     border-radius: 1rem;
     padding: 0.5rem;
     display: flex;
     flex-flow: column nowrap;
+    overflow: auto;
     .modal-content__close-icon {
       position: absolute;
       right: 0.25rem;
@@ -99,8 +106,22 @@
     overflow: hidden;
   }
   @media only screen and (max-width: 31.25rem) {
+    .modal-set {
+      align-items: flex-end;
+      padding: calc(0.5rem + env(safe-area-inset-top))
+        calc(0.5rem + env(safe-area-inset-right)) env(safe-area-inset-bottom)
+        calc(0.5rem + env(safe-area-inset-left));
+    }
+
     .modal-content {
+      flex: 0 1 auto;
+      width: 100%;
+      max-height: calc(
+        100dvh - 0.75rem - env(safe-area-inset-top) -
+          env(safe-area-inset-bottom)
+      );
       padding: 0.25rem;
+      border-radius: 1rem 1rem 0 0;
     }
     .landing-modal-container {
       padding: 0;

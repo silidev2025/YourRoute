@@ -41,7 +41,9 @@
     background: hsl(0, 0%, 95%);
     border-radius: 3px;
     font-size: 14px;
-    flex: 1 0 300px;
+    flex: 1 1 min(100%, 300px);
+    min-width: 0;
+    gap: 0.75rem;
     border: 1px solid transparent;
     transition:
       border 0.15s,
@@ -49,6 +51,7 @@
   }
   .class-info {
     flex: 1;
+    min-width: 0;
   }
 
   .class-code {
@@ -59,6 +62,7 @@
     color: #666;
     font-size: 13px;
     margin-top: 2px;
+    overflow-wrap: anywhere;
   }
 
   .class-section {
@@ -71,5 +75,18 @@
     font-size: 13px;
     color: #444;
     white-space: nowrap;
+  }
+
+  @media screen and (max-width: 30rem) {
+    .class-item {
+      flex-direction: column;
+      padding: 0.75rem;
+    }
+
+    .class-schedule {
+      text-align: left;
+      white-space: normal;
+      width: 100%;
+    }
   }
 </style>

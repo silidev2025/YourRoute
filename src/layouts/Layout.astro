@@ -1,5 +1,6 @@
 ---
 import { pwaInfo } from "virtual:pwa-info";
+import PWAInstallPrompt from "../components/PWAInstallPrompt.astro";
 import ReloadPrompt from "../components/ReloadPrompt.astro";
 import "../styles/font-face.css";
 import Analytics from "@vercel/analytics/astro";
@@ -9,26 +10,26 @@ import Analytics from "@vercel/analytics/astro";
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <meta name="theme-color" content="#a30e00" />
     <meta name="generator" content={Astro.generator} />
-    <title>CitMap</title>
+    <title>YourRoute</title>
     <meta
       name="description"
-      content="CitMap is an offline website built to help CITU students find their rooms across the Cebu Institute of Technology - University campus."
+      content="YourRoute is an offline website built to help CITU students find their rooms across the Cebu Institute of Technology - University campus."
     />
 
     <meta property="og:url" content="/" />
     <meta property="og:type" content="website" />
-    <meta
-      property="og:title"
-      content="CitMap"
-    />
+    <meta property="og:title" content="YourRoute" />
     <meta
       property="og:description"
-      content="CitMap is an offline website built to help CITU students find their rooms across the Cebu Institute of Technology - University campus."
+      content="YourRoute is an offline website built to help CITU students find their rooms across the Cebu Institute of Technology - University campus."
     />
     <meta property="og:image" content="/socmed.png" />
 
@@ -37,14 +38,19 @@ import Analytics from "@vercel/analytics/astro";
     <meta property="twitter:url" content="/" />
     <meta
       name="twitter:title"
-      content="CitMap utility for finding rooms around CITU"
+      content="YourRoute utility for finding rooms around CITU"
     />
     <meta
       name="twitter:description"
-      content="CitMap is an offline website built to help CITU students find their rooms across the Cebu Institute of Technology - University campus."
+      content="YourRoute is an offline website built to help CITU students find their rooms across the Cebu Institute of Technology - University campus."
     />
     <meta name="twitter:image" content="/socmed.png" />
     {pwaInfo && <Fragment set:html={pwaInfo.webManifest.linkTag} />}
+    <script is:inline>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js");
+      }
+    </script>
     <style is:global>
       * {
         font-family:
@@ -69,10 +75,20 @@ import Analytics from "@vercel/analytics/astro";
           outline-color: hsl(5, 53%, 32%);
         }
       }
+      html {
+        min-height: 100%;
+        background-color: hsl(0, 0%, 96%);
+      }
+      body {
+        min-height: 100%;
+        overscroll-behavior: none;
+        touch-action: manipulation;
+      }
     </style>
   </head>
   <body>
     <slot />
+    <PWAInstallPrompt />
     <ReloadPrompt />
     <Analytics />
   </body>

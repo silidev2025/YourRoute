@@ -9,7 +9,9 @@
       return;
     }
     if (!mapStore.mapInstance) {
-      toastStore.show("Map component is still initializing", "info");
+      locationStore.requestLocation();
+      centered = true;
+      toastStore.show("GPS is active on the offline map.", "success");
       return;
     }
 
@@ -58,6 +60,13 @@
     &:hover {
       background-color: hsl(5, 53%, 98%);
       transform: scale(1.05);
+    }
+  }
+
+  @media screen and (max-width: 48rem) {
+    .my-location-btn {
+      width: 2.875rem;
+      height: 2.875rem;
     }
   }
 </style>

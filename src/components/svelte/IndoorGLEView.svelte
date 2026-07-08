@@ -115,14 +115,11 @@
     const woodCeiling = material(0x5b4a3d);
     const roomPanel = material(0xd9b56e);
     const doorMat = material(0x42484d);
-    const routeMat = new THREE.MeshBasicMaterial({
-      color: 0x9b2b24,
-      transparent: true,
-      opacity: 0.92,
-      side: THREE.DoubleSide,
-      depthTest: false,
-    });
-    materials.push(routeMat);
+    const routeSegments: {
+      material: THREE.MeshBasicMaterial;
+      startDistance: number;
+      endDistance: number;
+    }[] = [];
 
     function addBox(
       size: [number, number, number],
@@ -175,51 +172,80 @@
       labels.push(sprite);
     }
 
+    function createRouteMaterial() {
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0x9b2b24,
+        transparent: true,
+        opacity: 0.92,
+        side: THREE.DoubleSide,
+        depthTest: false,
+      });
+      materials.push(mat);
+      return mat;
+    }
+
     function addRouteRibbon(points: THREE.Vector3[], width = 0.2) {
+      let routeDistance = 0;
+
       points.slice(0, -1).forEach((from, index) => {
         const to = points[index + 1];
-        const direction = to.clone().sub(from);
-        if (direction.lengthSq() === 0) return;
+        const segmentVector = to.clone().sub(from);
+        const segmentLength = segmentVector.length();
+        if (segmentLength === 0) return;
 
-        direction.normalize();
-        const side = new THREE.Vector3().crossVectors(
-          direction,
-          new THREE.Vector3(0, 1, 0),
-        );
-        if (side.lengthSq() < 0.0001) side.set(1, 0, 0);
-        side.normalize().multiplyScalar(width / 2);
+        const pieces = Math.max(1, Math.ceil(segmentLength / 1.15));
+        for (let piece = 0; piece < pieces; piece += 1) {
+          const start = from.clone().lerp(to, piece / pieces);
+          const end = from.clone().lerp(to, (piece + 1) / pieces);
+          const direction = end.clone().sub(start);
+          const pieceLength = direction.length();
+          if (pieceLength === 0) continue;
 
-        const start = from.clone();
-        const end = to.clone();
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute(
-          "position",
-          new THREE.Float32BufferAttribute(
-            [
-              start.x - side.x,
-              start.y - side.y,
-              start.z - side.z,
-              start.x + side.x,
-              start.y + side.y,
-              start.z + side.z,
-              end.x - side.x,
-              end.y - side.y,
-              end.z - side.z,
-              end.x + side.x,
-              end.y + side.y,
-              end.z + side.z,
-            ],
-            3,
-          ),
-        );
-        geometry.setIndex([0, 1, 2, 2, 1, 3]);
-        geometry.computeVertexNormals();
+          direction.normalize();
+          const side = new THREE.Vector3().crossVectors(
+            direction,
+            new THREE.Vector3(0, 1, 0),
+          );
+          if (side.lengthSq() < 0.0001) side.set(1, 0, 0);
+          side.normalize().multiplyScalar(width / 2);
 
-        const segment = new THREE.Mesh(geometry, routeMat);
-        segment.renderOrder = 4;
-        segment.castShadow = false;
-        segment.receiveShadow = false;
-        scene.add(segment);
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute(
+            "position",
+            new THREE.Float32BufferAttribute(
+              [
+                start.x - side.x,
+                start.y - side.y,
+                start.z - side.z,
+                start.x + side.x,
+                start.y + side.y,
+                start.z + side.z,
+                end.x - side.x,
+                end.y - side.y,
+                end.z - side.z,
+                end.x + side.x,
+                end.y + side.y,
+                end.z + side.z,
+              ],
+              3,
+            ),
+          );
+          geometry.setIndex([0, 1, 2, 2, 1, 3]);
+          geometry.computeVertexNormals();
+
+          const segmentMaterial = createRouteMaterial();
+          const routeSegment = new THREE.Mesh(geometry, segmentMaterial);
+          routeSegment.renderOrder = 4;
+          routeSegment.castShadow = false;
+          routeSegment.receiveShadow = false;
+          scene.add(routeSegment);
+          routeSegments.push({
+            material: segmentMaterial,
+            startDistance: routeDistance,
+            endDistance: routeDistance + pieceLength,
+          });
+          routeDistance += pieceLength;
+        }
       });
     }
 
@@ -370,28 +396,207 @@
 
     addRouteRibbon(indoorRoutePoints, 0.22);
 
-    const avatar = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.22, 0.72, 5, 12),
-      material(0x202020),
-    );
-    body.position.y = 0.63;
-    body.castShadow = true;
-    avatar.add(body);
-    const head = new THREE.Mesh(
-      new THREE.SphereGeometry(0.22, 24, 16),
-      material(0xf1c7a5),
-    );
-    head.position.y = 1.25;
-    head.castShadow = true;
-    avatar.add(head);
-    const pointer = new THREE.Mesh(
-      new THREE.ConeGeometry(0.22, 0.48, 18),
-      material(0x8a2d24),
-    );
-    pointer.rotation.x = Math.PI / 2;
-    pointer.position.set(0, 0.1, -0.38);
-    avatar.add(pointer);
+    function createNavigationGuide() {
+      const guideMat = new THREE.MeshStandardMaterial({
+        color: 0xf4f2ec,
+        roughness: 0.34,
+        metalness: 0,
+      });
+      const guideShadeMat = new THREE.MeshStandardMaterial({
+        color: 0xe4e1d9,
+        roughness: 0.42,
+        metalness: 0,
+      });
+      const floorShadowMat = new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0.16,
+        depthWrite: false,
+      });
+      materials.push(guideMat, guideShadeMat, floorShadowMat);
+
+      const root = new THREE.Group();
+      const model = new THREE.Group();
+      model.rotation.x = 0.18;
+      model.scale.setScalar(1.12);
+      root.add(model);
+
+      const makeMesh = (
+        geometry: THREE.BufferGeometry,
+        mat: THREE.Material,
+      ) => {
+        const mesh = new THREE.Mesh(geometry, mat);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        return mesh;
+      };
+
+      const makeCapsule = (
+        radius: number,
+        length: number,
+        mat: THREE.Material,
+      ) => makeMesh(new THREE.CapsuleGeometry(radius, length, 10, 28), mat);
+
+      const torso = makeCapsule(0.34, 0.76, guideMat);
+      torso.position.set(0, 1.08, 0.02);
+      torso.scale.set(1, 1.02, 0.78);
+      model.add(torso);
+
+      const hips = makeMesh(
+        new THREE.SphereGeometry(0.31, 32, 22),
+        guideShadeMat,
+      );
+      hips.position.set(0, 0.66, -0.02);
+      hips.scale.set(1.24, 0.62, 0.86);
+      model.add(hips);
+
+      const belly = makeMesh(new THREE.SphereGeometry(0.23, 32, 20), guideMat);
+      belly.position.set(0, 0.94, 0.18);
+      belly.scale.set(1.2, 1.05, 0.36);
+      model.add(belly);
+
+      const neck = makeCapsule(0.12, 0.12, guideMat);
+      neck.position.set(0, 1.5, 0.02);
+      model.add(neck);
+
+      const head = makeMesh(new THREE.SphereGeometry(0.38, 44, 30), guideMat);
+      head.position.set(0, 1.84, 0.06);
+      head.scale.set(0.96, 1.15, 0.92);
+      head.castShadow = true;
+      model.add(head);
+
+      const shoulderBar = makeCapsule(0.12, 0.48, guideMat);
+      shoulderBar.position.set(0, 1.31, 0.04);
+      shoulderBar.rotation.z = Math.PI / 2;
+      model.add(shoulderBar);
+
+      const createArm = (side: -1 | 1) => {
+        const shoulder = new THREE.Group();
+        shoulder.position.set(side * 0.42, 1.25, 0.03);
+        shoulder.rotation.z = side * 0.13;
+
+        const upper = makeCapsule(0.11, 0.38, guideMat);
+        upper.position.y = -0.24;
+        shoulder.add(upper);
+
+        const elbow = makeMesh(
+          new THREE.SphereGeometry(0.12, 24, 16),
+          guideShadeMat,
+        );
+        elbow.position.y = -0.49;
+        shoulder.add(elbow);
+
+        const forearm = new THREE.Group();
+        forearm.position.y = -0.49;
+        forearm.rotation.x = -0.3;
+        shoulder.add(forearm);
+
+        const lower = makeCapsule(0.1, 0.34, guideMat);
+        lower.position.y = -0.2;
+        forearm.add(lower);
+
+        const hand = makeMesh(new THREE.SphereGeometry(0.13, 24, 16), guideMat);
+        hand.position.y = -0.42;
+        hand.scale.set(1.05, 0.82, 0.92);
+        forearm.add(hand);
+
+        model.add(shoulder);
+        return { shoulder, forearm };
+      };
+
+      const createLeg = (side: -1 | 1) => {
+        const hip = new THREE.Group();
+        hip.position.set(side * 0.19, 0.63, 0.01);
+
+        const upper = makeCapsule(0.145, 0.5, guideMat);
+        upper.position.y = -0.28;
+        upper.scale.set(0.9, 1, 0.82);
+        hip.add(upper);
+
+        const knee = makeMesh(
+          new THREE.SphereGeometry(0.15, 24, 16),
+          guideShadeMat,
+        );
+        knee.position.y = -0.58;
+        hip.add(knee);
+
+        const shin = new THREE.Group();
+        shin.position.y = -0.58;
+        hip.add(shin);
+
+        const lower = makeCapsule(0.125, 0.46, guideMat);
+        lower.position.y = -0.27;
+        lower.scale.set(0.88, 1, 0.82);
+        shin.add(lower);
+
+        const foot = makeMesh(new THREE.SphereGeometry(0.17, 28, 18), guideMat);
+        foot.position.set(0, -0.53, 0.18);
+        foot.scale.set(0.78, 0.42, 1.72);
+        shin.add(foot);
+
+        model.add(hip);
+        return { hip, shin, foot };
+      };
+
+      const leftArm = createArm(-1);
+      const rightArm = createArm(1);
+      const leftLeg = createLeg(-1);
+      const rightLeg = createLeg(1);
+
+      const floorShadow = makeMesh(
+        new THREE.CircleGeometry(0.7, 48),
+        floorShadowMat,
+      );
+      floorShadow.rotation.x = -Math.PI / 2;
+      floorShadow.position.y = 0.015;
+      floorShadow.scale.set(1.4, 0.6, 1);
+      floorShadow.castShadow = false;
+      floorShadow.receiveShadow = false;
+      root.add(floorShadow);
+
+      function update(
+        walkTime: number,
+        idleTime: number,
+        walkingAmount: number,
+      ) {
+        const walk = walkingAmount;
+        const stride = Math.sin(walkTime);
+        const counterStride = Math.sin(walkTime + Math.PI);
+        const doubleStep = Math.sin(walkTime * 2);
+        const breath = Math.sin(idleTime * 1.8) * 0.012;
+
+        model.position.y = breath + Math.max(0, doubleStep) * 0.045 * walk;
+        model.rotation.x = 0.2 + doubleStep * 0.022 * walk;
+        model.rotation.z = stride * 0.032 * walk;
+        head.position.y = 1.84 - Math.max(0, -doubleStep) * 0.028 * walk;
+
+        leftLeg.hip.rotation.x = stride * 0.5 * walk;
+        rightLeg.hip.rotation.x = counterStride * 0.5 * walk;
+        leftLeg.hip.rotation.z = -0.08 + Math.max(0, stride) * 0.08 * walk;
+        rightLeg.hip.rotation.z =
+          0.08 - Math.max(0, counterStride) * 0.08 * walk;
+        leftLeg.shin.rotation.x = Math.max(0, -stride) * 0.68 * walk;
+        rightLeg.shin.rotation.x = Math.max(0, -counterStride) * 0.68 * walk;
+        leftLeg.foot.rotation.x = -Math.max(0, stride) * 0.28 * walk;
+        rightLeg.foot.rotation.x = -Math.max(0, counterStride) * 0.28 * walk;
+
+        leftArm.shoulder.rotation.x = counterStride * 0.42 * walk - 0.18;
+        rightArm.shoulder.rotation.x = stride * 0.42 * walk - 0.2;
+        leftArm.shoulder.rotation.z = -0.22;
+        rightArm.shoulder.rotation.z = 0.22;
+        leftArm.shoulder.rotation.y = 0.12;
+        rightArm.shoulder.rotation.y = -0.12;
+        leftArm.forearm.rotation.x = -0.42 - Math.max(0, stride) * 0.22 * walk;
+        rightArm.forearm.rotation.x =
+          -0.42 - Math.max(0, counterStride) * 0.22 * walk;
+      }
+
+      update(0, 0, 0);
+      return { root, update };
+    }
+
+    const guide = createNavigationGuide();
+    const avatar = guide.root;
     avatar.position.copy(getTargetPosition());
     scene.add(avatar);
 
@@ -407,6 +612,9 @@
     window.addEventListener("resize", resize);
 
     let animationFrame = 0;
+    let walkTime = 0;
+    let idleTime = 0;
+    const previousAvatarPosition = avatar.position.clone();
     const defaultViewYaw = Math.atan2(6.5, 8.8);
     const defaultLookHeight = 1.05;
     const defaultCameraDistance = 11;
@@ -424,6 +632,55 @@
 
     const clamp = (value: number, min: number, max: number) =>
       Math.max(min, Math.min(value, max));
+
+    const routeDelta = new THREE.Vector3();
+    const routeOffset = new THREE.Vector3();
+    const routeProjection = new THREE.Vector3();
+
+    function getRouteProgress(position: THREE.Vector3) {
+      let traveled = 0;
+      let closestProgress = 0;
+      let closestDistanceSq = Number.POSITIVE_INFINITY;
+
+      for (let index = 0; index < indoorRoutePoints.length - 1; index += 1) {
+        const start = indoorRoutePoints[index];
+        const end = indoorRoutePoints[index + 1];
+        routeDelta.copy(end).sub(start);
+        const lengthSq = routeDelta.lengthSq();
+        if (lengthSq === 0) continue;
+
+        const length = Math.sqrt(lengthSq);
+        routeOffset.copy(position).sub(start);
+        const t = clamp(routeOffset.dot(routeDelta) / lengthSq, 0, 1);
+        routeProjection.copy(start).addScaledVector(routeDelta, t);
+        const distanceSq = routeProjection.distanceToSquared(position);
+
+        if (distanceSq < closestDistanceSq) {
+          closestDistanceSq = distanceSq;
+          closestProgress = traveled + length * t;
+        }
+
+        traveled += length;
+      }
+
+      return closestProgress;
+    }
+
+    function updateRouteTraceFade(progress: number) {
+      const fadeDistance = 2.75;
+      const maxOpacity = 0.92;
+
+      routeSegments.forEach((segment) => {
+        const distancePastSegment = progress - segment.endDistance;
+        const opacity =
+          distancePastSegment <= 0
+            ? maxOpacity
+            : maxOpacity * clamp(1 - distancePastSegment / fadeDistance, 0, 1);
+
+        segment.material.opacity = opacity;
+        segment.material.visible = opacity > 0.025;
+      });
+    }
 
     const markCameraMovedByUser = () => {
       cameraMovedByUser = true;
@@ -494,8 +751,19 @@
     const animate = () => {
       animationFrame = requestAnimationFrame(animate);
 
+      idleTime += 0.016;
       const target = getTargetPosition();
       avatar.position.lerp(target, 0.065);
+      const movementDistance = avatar.position.distanceTo(
+        previousAvatarPosition,
+      );
+      previousAvatarPosition.copy(avatar.position);
+      const walkingAmount = clamp(movementDistance * 24, 0, 1);
+      if (walkingAmount > 0.02) {
+        walkTime += 0.11 + walkingAmount * 0.12;
+      }
+      guide.update(walkTime, idleTime, walkingAmount);
+      updateRouteTraceFade(getRouteProgress(avatar.position));
 
       const nextTarget = getTargetPosition();
       const heading = nextTarget.clone().sub(avatar.position);

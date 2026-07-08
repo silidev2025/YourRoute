@@ -15,9 +15,12 @@
     CITU_DEFAULT_BEARING,
     CITU_DEFAULT_PITCH,
     CITU_DEFAULT_ZOOM,
+    CITU_LOCATION_BOUNDS,
     CITU_MAP_BOUNDS,
+    findCituBuildingLabel,
   } from "../../constants/campus";
   import { getAppData } from "../../lib/context";
+  import { preloadOfflineMapAssets } from "../../lib/offline-map-cache";
   import {
     queryStore,
     locationStore,
@@ -27,14 +30,23 @@
   import { untrack } from "svelte";
   import { fade } from "svelte/transition";
   import MapLibreGlDirections from "@maplibre/maplibre-gl-directions";
-  import { Building2, University, UserRound } from "@lucide/svelte";
+  import {
+    Building2,
+    Route as RouteIcon,
+    University,
+    UserRound,
+  } from "@lucide/svelte";
   import { MediaQuery } from "svelte/reactivity";
   import * as mapGl from "maplibre-gl";
   import type { LngLat } from "../../constants/room-routes";
+  import { onMount } from "svelte";
   const { buildings, rooms } = getAppData();
   let directions: MapLibreGlDirections | undefined = $state.raw();
 
   let animationFrameId: number | null = $state(null);
+  let isOnline = $state(true);
+  let mapHasLoaded = $state(false);
+  let mapHasErrored = $state(false);
 
   let isRotating = $state(false);
   let lastTimestamp = $state(0);
@@ -43,6 +55,40 @@
   let activeOfficialBuildingName = $state<string | null>(null);
   const SIDEPANEL_WIDTH = 25.75 * 16;
   const md = new MediaQuery("max-width:48rem");
+  const OFFLINE_MAP_BOUNDS: [[number, number], [number, number]] = [
+    [
+      CITU_LOCATION_BOUNDS.minLng - 0.00045,
+      CITU_LOCATION_BOUNDS.minLat - 0.00035,
+    ],
+    [
+      CITU_LOCATION_BOUNDS.maxLng + 0.00045,
+      CITU_LOCATION_BOUNDS.maxLat + 0.00035,
+    ],
+  ];
+
+  onMount(() => {
+    const updateOnlineStatus = () => {
+      isOnline = navigator.onLine;
+    };
+    const cacheMapAssets = () => {
+      void preloadOfflineMapAssets();
+    };
+    const handleOnline = () => {
+      updateOnlineStatus();
+      mapHasErrored = false;
+      cacheMapAssets();
+    };
+
+    updateOnlineStatus();
+    cacheMapAssets();
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", updateOnlineStatus);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", updateOnlineStatus);
+    };
+  });
 
   const calculatePadding = (md: boolean): mapGl.PaddingOptions => {
     if (md) {
@@ -64,6 +110,17 @@
       lat >= CITU_MAP_BOUNDS[0][1] &&
       lat <= CITU_MAP_BOUNDS[1][1]
     );
+  }
+
+  function getOfflineMapPoint(lon: number, lat: number) {
+    const [[minLng, minLat], [maxLng, maxLat]] = OFFLINE_MAP_BOUNDS;
+    const x = ((lon - minLng) / (maxLng - minLng)) * 100;
+    const y = (1 - (lat - minLat) / (maxLat - minLat)) * 100;
+
+    return {
+      x: Math.max(4, Math.min(96, x)),
+      y: Math.max(4, Math.min(96, y)),
+    };
   }
 
   function getBearing(from: LngLat, to: LngLat) {
@@ -118,6 +175,15 @@
     zoomLevel = mapStore.mapInstance.getZoom();
   }
 
+  function handleMapLoad() {
+    mapHasLoaded = true;
+    mapHasErrored = false;
+  }
+
+  function handleMapError() {
+    mapHasErrored = true;
+  }
+
   $effect(() => {
     if (mapStore.mapInstance) {
       const map = mapStore.mapInstance;
@@ -135,7 +201,7 @@
   });
 
   $effect(() => {
-    if (mapStore.mapInstance && !directions) {
+    if (isOnline && mapStore.mapInstance && !directions) {
       const initDirections = () => {
         if (!directions && mapStore.mapInstance) {
           directions = new MapLibreGlDirections(mapStore.mapInstance, {
@@ -182,6 +248,7 @@
         const currentBuilding = buildings.find(
           (building) => building.building_name === value,
         );
+        const officialBuilding = findCituBuildingLabel(value);
 
         if (
           currentBuilding &&
@@ -191,6 +258,17 @@
         ) {
           map.flyTo({
             center: [currentBuilding.lon, currentBuilding.lat],
+            zoom: 18,
+            pitch: CITU_DEFAULT_PITCH,
+            bearing: CITU_DEFAULT_BEARING,
+            padding: calculatePadding(md.current),
+            duration: 1500,
+          });
+          map.once("moveend", startRotation);
+        } else if (officialBuilding) {
+          activeOfficialBuildingName = officialBuilding.name;
+          map.flyTo({
+            center: officialBuilding.coords,
             zoom: 18,
             pitch: CITU_DEFAULT_PITCH,
             bearing: CITU_DEFAULT_BEARING,
@@ -270,7 +348,10 @@
     if (!queryStore.category || queryStore.type !== "result") return null;
     switch (queryStore.category) {
       case "building":
-        return queryStore.inputValue;
+        return (
+          findCituBuildingLabel(queryStore.inputValue)?.name ??
+          queryStore.inputValue
+        );
       case "room": {
         const currentRoom = rooms.find(
           (room) => room.code === queryStore.inputValue,
@@ -308,6 +389,47 @@
       return locationStore.coords;
     }
     return navigationStore.avatarCoords;
+  });
+
+  const offlineRoutePoints = $derived.by(() => {
+    if (navigationStore.activeRoute) {
+      return navigationStore.activeRoute.steps.map((step) =>
+        getOfflineMapPoint(step.coords[0], step.coords[1]),
+      );
+    }
+
+    const origin = locationStore.routeOrigin ?? locationStore.coords;
+    if (origin && locationStore.destination) {
+      return [
+        getOfflineMapPoint(origin[0], origin[1]),
+        getOfflineMapPoint(
+          locationStore.destination[0],
+          locationStore.destination[1],
+        ),
+      ];
+    }
+
+    return [];
+  });
+
+  const offlineRoutePolyline = $derived(
+    offlineRoutePoints.map((point) => `${point.x},${point.y}`).join(" "),
+  );
+
+  const offlineUserPoint = $derived.by(() => {
+    const coords = activeNavigationCoords ?? locationStore.coords;
+    return coords ? getOfflineMapPoint(coords[0], coords[1]) : null;
+  });
+
+  const offlineDestinationPoint = $derived.by(() => {
+    const activeRoute = navigationStore.activeRoute;
+    const destination =
+      activeRoute?.steps[activeRoute.steps.length - 1]?.coords ??
+      locationStore.destination;
+
+    return destination
+      ? getOfflineMapPoint(destination[0], destination[1])
+      : null;
   });
 
   $effect(() => {
@@ -377,6 +499,8 @@
     bearing={CITU_DEFAULT_BEARING}
     minZoom={15}
     class="map"
+    onload={handleMapLoad}
+    onerror={handleMapError}
   >
     <FillExtrusionLayer
       sourceLayer="building"
@@ -501,6 +625,161 @@
       {/if}
     {/each}
   </MapLibre>
+  {#if !isOnline && (mapHasErrored || !mapHasLoaded)}
+    <div class="offline-map" aria-label="Offline campus map">
+      <div class="offline-map-grid"></div>
+      <svg
+        class="offline-campus-layer"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
+        <path class="offline-road major" d="M -4 88 C 18 86 42 88 104 84" />
+        <path class="offline-road" d="M 28 10 C 32 30 37 52 48 94" />
+        <path class="offline-road" d="M 68 8 C 61 28 59 49 67 92" />
+        <path class="offline-path" d="M 18 61 C 35 58 52 56 83 58" />
+        <path class="offline-path" d="M 18 47 C 38 45 58 45 84 43" />
+        <rect
+          class="offline-green"
+          x="24"
+          y="35"
+          width="18"
+          height="15"
+          rx="2"
+        />
+        <rect
+          class="offline-green"
+          x="48"
+          y="51"
+          width="12"
+          height="19"
+          rx="2"
+        />
+        <rect
+          class="offline-building-footprint"
+          x="31"
+          y="61"
+          width="22"
+          height="7"
+          rx="1"
+        />
+        <rect
+          class="offline-building-footprint"
+          x="48"
+          y="38"
+          width="20"
+          height="8"
+          rx="1"
+        />
+        <rect
+          class="offline-building-footprint"
+          x="56"
+          y="66"
+          width="17"
+          height="7"
+          rx="1"
+        />
+        <rect
+          class="offline-building-footprint"
+          x="70"
+          y="43"
+          width="13"
+          height="8"
+          rx="1"
+        />
+      </svg>
+      {#if offlineRoutePolyline}
+        <svg
+          class="offline-route-layer"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <polyline
+            class="offline-route-shadow"
+            points={offlineRoutePolyline}
+          />
+          <polyline class="offline-route-line" points={offlineRoutePolyline} />
+          {#each offlineRoutePoints as point}
+            <circle
+              class="offline-route-step"
+              cx={point.x}
+              cy={point.y}
+              r="0.75"
+            />
+          {/each}
+        </svg>
+      {/if}
+      <div class="offline-campus-label">
+        <University size="20" />
+        <span>{CITU_CAMPUS_SHORT_NAME}</span>
+      </div>
+      <div class="offline-map-status">Offline map</div>
+      {#each CITU_BUILDING_LABELS as buildingLabel}
+        {@const point = getOfflineMapPoint(
+          buildingLabel.coords[0],
+          buildingLabel.coords[1],
+        )}
+        <button
+          type="button"
+          class="offline-building-pin official"
+          class:active={activeOfficialBuildingName === buildingLabel.name ||
+            activeBuildingName === buildingLabel.name}
+          style:left={`${point.x}%`}
+          style:top={`${point.y}%`}
+          title={buildingLabel.fullName ?? buildingLabel.name}
+          onclick={(event) => handleOfficialBuildingClick(buildingLabel, event)}
+        >
+          <span class="offline-building-dot">
+            <Building2 size="16" />
+          </span>
+          <span class="offline-building-label">
+            <strong>{buildingLabel.name}</strong>
+          </span>
+        </button>
+      {/each}
+      {#if offlineDestinationPoint}
+        <div
+          class="offline-destination-pin"
+          style:left={`${offlineDestinationPoint.x}%`}
+          style:top={`${offlineDestinationPoint.y}%`}
+          title="Destination"
+        >
+          <RouteIcon />
+        </div>
+      {/if}
+      {#if offlineUserPoint}
+        <div
+          class="offline-user-pin"
+          class:mock={locationStore.mockMode}
+          style:left={`${offlineUserPoint.x}%`}
+          style:top={`${offlineUserPoint.y}%`}
+          title={locationStore.mockMode ? "Demo position" : "Your location"}
+        >
+          <UserRound size="16" />
+        </div>
+      {/if}
+      {#each buildings as building}
+        {#if building.lat && building.lon && isInsideCampusMapBounds(building.lon, building.lat)}
+          {@const point = getOfflineMapPoint(building.lon, building.lat)}
+          <button
+            type="button"
+            class="offline-building-pin"
+            class:active={activeBuildingName === building.building_name}
+            style:left={`${point.x}%`}
+            style:top={`${point.y}%`}
+            title={building.building_name}
+            onclick={() => handleMarkerClick(building.building_name)}
+          >
+            <span class="offline-building-dot">
+              <University size="16" />
+            </span>
+            <span class="offline-building-label">{building.building_name}</span>
+          </button>
+        {/if}
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -511,6 +790,306 @@
     width: 100%;
     height: 100%;
     z-index: 0;
+  }
+
+  .map-container :global(.map) {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .offline-map {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background:
+      radial-gradient(
+        circle at 55% 45%,
+        rgba(123, 17, 19, 0.1),
+        transparent 28rem
+      ),
+      linear-gradient(135deg, #f7f7f7 0%, #eceff1 100%);
+  }
+
+  .offline-map-grid {
+    position: absolute;
+    inset: 0;
+    opacity: 0.55;
+    background-image:
+      linear-gradient(rgba(123, 17, 19, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(123, 17, 19, 0.08) 1px, transparent 1px);
+    background-size: 2rem 2rem;
+  }
+
+  .offline-campus-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0.86;
+  }
+
+  .offline-road,
+  .offline-path {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .offline-road {
+    stroke: #d9d9d9;
+    stroke-width: 13;
+  }
+
+  .offline-road.major {
+    stroke: #f4d178;
+    stroke-width: 17;
+  }
+
+  .offline-path {
+    stroke: #9aa0a6;
+    stroke-width: 4;
+    opacity: 0.75;
+  }
+
+  .offline-green {
+    fill: #bfe3c4;
+    opacity: 0.9;
+  }
+
+  .offline-building-footprint {
+    fill: #d7d7d7;
+    stroke: #b8b8b8;
+    stroke-width: 0.35;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .offline-route-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  .offline-route-shadow,
+  .offline-route-line {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .offline-route-shadow {
+    stroke: white;
+    stroke-width: 8;
+    opacity: 0.9;
+  }
+
+  .offline-route-line {
+    stroke: hsl(5, 53%, 32%);
+    stroke-width: 4;
+    opacity: 0.95;
+  }
+
+  .offline-route-step {
+    fill: white;
+    stroke: hsl(5, 53%, 32%);
+    stroke-width: 0.35;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .offline-map-status,
+  .offline-campus-label {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: hsl(5, 53%, 32%);
+    background-color: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(123, 17, 19, 0.18);
+    border-radius: 999px;
+    box-shadow: 0 2px 0.6rem rgba(0, 0, 0, 0.12);
+    font-weight: 800;
+    pointer-events: none;
+  }
+
+  .offline-campus-label {
+    left: 50%;
+    top: 50%;
+    translate: -50% -50%;
+    padding: 0.5rem 0.8rem;
+  }
+
+  .offline-map-status {
+    right: 1rem;
+    top: 1rem;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.875rem;
+  }
+
+  .offline-building-pin {
+    all: unset;
+    position: absolute;
+    translate: -50% -50%;
+    z-index: 1;
+    cursor: pointer;
+    pointer-events: auto;
+    display: grid;
+    place-items: center;
+  }
+
+  .offline-building-pin.official {
+    z-index: 2;
+  }
+
+  .offline-user-pin,
+  .offline-destination-pin {
+    position: absolute;
+    translate: -50% -50%;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    color: white;
+    border: 3px solid white;
+    border-radius: 50%;
+    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.28);
+    pointer-events: none;
+  }
+
+  .offline-user-pin {
+    background-color: #2563eb;
+  }
+
+  .offline-user-pin.mock {
+    background-color: #f59e0b;
+  }
+
+  .offline-user-pin::after {
+    content: "";
+    position: absolute;
+    inset: -0.45rem;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    animation: pulsate 2s ease-out infinite;
+    opacity: 0;
+  }
+
+  .offline-destination-pin {
+    background-color: hsl(5, 53%, 32%);
+  }
+
+  .offline-building-dot {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    color: white;
+    background-color: hsl(5, 53%, 32%);
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 0.35rem rgba(0, 0, 0, 0.25);
+  }
+
+  .offline-building-pin.official .offline-building-dot {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .offline-building-label {
+    position: absolute;
+    bottom: calc(100% + 0.35rem);
+    left: 50%;
+    translate: -50% 0;
+    width: max-content;
+    max-width: 9rem;
+    padding: 0.25rem 0.5rem;
+    color: hsl(5, 53%, 24%);
+    background-color: white;
+    border-radius: 0.45rem;
+    box-shadow: 0 2px 0.35rem rgba(0, 0, 0, 0.16);
+    font-size: 0.75rem;
+    font-weight: 800;
+    line-height: 1.05;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .offline-building-pin.official .offline-building-label {
+    display: flex;
+    align-items: center;
+    opacity: 1;
+    color: white;
+    background-color: hsl(5, 53%, 32%);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    box-shadow: 0 2px 0.45rem rgba(0, 0, 0, 0.22);
+  }
+
+  .offline-building-pin.official .offline-building-label strong {
+    font-size: 0.78rem;
+    line-height: 1.05;
+  }
+
+  .offline-building-pin:hover,
+  .offline-building-pin.active {
+    z-index: 2;
+  }
+
+  .offline-building-pin:hover .offline-building-dot,
+  .offline-building-pin.active .offline-building-dot {
+    background-color: hsl(5, 53%, 40%);
+    outline: 0.125rem solid hsl(5, 53%, 40%);
+    outline-offset: 0.125rem;
+  }
+
+  .offline-building-pin:hover .offline-building-label,
+  .offline-building-pin.active .offline-building-label {
+    opacity: 1;
+  }
+
+  @media screen and (max-width: 48rem) {
+    .offline-map-status {
+      top: auto;
+      right: 0.75rem;
+      bottom: calc(4.25rem + env(safe-area-inset-bottom));
+      font-size: 0.75rem;
+    }
+
+    .offline-campus-label {
+      top: 56%;
+    }
+
+    .offline-building-label {
+      display: none;
+    }
+
+    .offline-building-pin.official {
+      scale: 0.92;
+    }
+
+    .offline-building-pin.official .offline-building-label {
+      display: flex;
+      opacity: 1;
+      max-width: 7.25rem;
+      font-size: 0.68rem;
+    }
+
+    .offline-building-pin.official .offline-building-label strong {
+      font-size: 0.68rem;
+    }
+
+    .offline-building-pin.active .offline-building-label {
+      display: block;
+      opacity: 1;
+    }
   }
 
   .user-location-pin {

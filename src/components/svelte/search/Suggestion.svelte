@@ -64,6 +64,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    min-height: 2.75rem;
     cursor: pointer;
     transition: background-color 0.2s;
     border-radius: 0.75rem;

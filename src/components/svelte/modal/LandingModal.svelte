@@ -15,7 +15,7 @@
 <div class="landing-content">
   <div class="hero-image">
     <div class="hero-overlay">
-      <h2>CitMap</h2>
+      <h2>YourRoute</h2>
       <p>"Asa sa CIT ang ___?" Finally answered.</p>
     </div>
   </div>
@@ -23,8 +23,8 @@
   <div class="content-body">
     <div class="description-container">
       <p class="description">
-        CitMap is an offline website built to help CITU students find
-        their rooms across the Cebu Institute of Technology - University campus.
+        YourRoute is an offline website built to help CITU students find their
+        rooms across the Cebu Institute of Technology - University campus.
       </p>
     </div>
     <div class="people-sections">
@@ -83,8 +83,9 @@
   .landing-content {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: auto;
     height: 100%;
+    max-height: inherit;
     border-radius: inherit;
     background-color: white;
   }
@@ -118,6 +119,7 @@
     font-size: 1rem;
     margin: 0;
     font-weight: 500;
+    line-height: 1.35;
   }
   .content-body {
     padding: 1.5rem 2rem 2rem;
@@ -191,6 +193,7 @@
     text-align: center;
     line-height: 1.1;
     display: none;
+    overflow-wrap: anywhere;
   }
 
   .tooltip {
@@ -249,6 +252,43 @@
     }
   }
 
+  @media screen and (max-width: 30rem) {
+    .hero-image {
+      min-height: 9rem;
+    }
+
+    .hero-overlay {
+      padding: 1.25rem 1rem;
+    }
+
+    .hero-overlay h2 {
+      font-size: 1.625rem;
+    }
+
+    .hero-overlay p {
+      font-size: 0.875rem;
+    }
+
+    .content-body {
+      align-items: stretch;
+      padding: 0.875rem;
+      gap: 0.875rem;
+    }
+
+    .description {
+      font-size: 0.875rem;
+    }
+
+    .developers-profile .name {
+      display: block;
+    }
+
+    .tooltip::before,
+    .tooltip::after {
+      display: none;
+    }
+  }
+
   .actions {
     display: flex;
     flex-direction: column;
@@ -262,6 +302,7 @@
     border: none;
     border-radius: 0.5rem;
     padding: 0.75rem 2rem;
+    min-height: 2.75rem;
     font-size: 1rem;
     font-weight: bold;
     cursor: pointer;
@@ -269,6 +310,7 @@
       background-color 0.2s,
       transform 0.1s;
     box-shadow: 0 2px 4px rgba(123, 17, 19, 0.2);
+    text-align: center;
   }
   .primary-btn:hover {
     background-color: #5a0c0e;
@@ -287,6 +329,7 @@
     color: #4a4a4a;
     cursor: pointer;
     user-select: none;
+    justify-content: center;
   }
   .checkbox-label input[type="checkbox"] {
     cursor: pointer;

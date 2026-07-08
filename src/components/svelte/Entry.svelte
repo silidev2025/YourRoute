@@ -86,7 +86,7 @@
   <Map />
   <div class="ui-layer">
     <!-- <header class="top-header">
-      <h2>CitMap</h2>
+      <h2>YourRoute</h2>
     </header> -->
     <div class="inner-layer">
       <SidePanel />
@@ -115,14 +115,19 @@
     width: 100%;
     height: 100dvh;
     overflow: hidden;
+    position: relative;
   }
   .inner-layer {
     display: flex;
     flex-direction: column;
-    padding: 0.5rem;
+    padding: calc(0.5rem + env(safe-area-inset-top))
+      calc(0.5rem + env(safe-area-inset-right))
+      calc(0.5rem + env(safe-area-inset-bottom))
+      calc(0.5rem + env(safe-area-inset-left));
     flex: 1 0 0;
     pointer-events: none;
     gap: 0.5rem;
+    min-height: 0;
   }
 
   :global(.map) {
@@ -138,8 +143,18 @@
     pointer-events: none;
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: 100dvh;
     width: 100%;
+  }
+
+  @media screen and (max-width: 48rem) {
+    .inner-layer {
+      padding: calc(0.625rem + env(safe-area-inset-top))
+        calc(0.625rem + env(safe-area-inset-right))
+        calc(0.625rem + env(safe-area-inset-bottom))
+        calc(0.625rem + env(safe-area-inset-left));
+      gap: 0.625rem;
+    }
   }
 
   :global(*) {

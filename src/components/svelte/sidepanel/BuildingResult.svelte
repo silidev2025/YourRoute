@@ -3,11 +3,27 @@
   import { getAppData } from "../../../lib/context";
   import ResultDisplay from "./ResultDisplay.svelte";
   import { CornerRightUp } from "@lucide/svelte";
+  import {
+    findCituBuildingLabel,
+    getCituBuildingDisplayName,
+  } from "../../../constants/campus";
 
   const { rooms, buildings } = getAppData();
 
   const building = $derived(
     buildings.find((b) => b.building_name === queryStore.queryValue),
+  );
+  const officialBuilding = $derived(
+    findCituBuildingLabel(queryStore.queryValue),
+  );
+  const buildingTitle = $derived(
+    building?.building_name ??
+      (officialBuilding ? getCituBuildingDisplayName(officialBuilding) : null),
+  );
+  const buildingCoords = $derived(
+    building?.lon && building?.lat
+      ? ([building.lon, building.lat] as [number, number])
+      : officialBuilding?.coords,
   );
 
   const buildingRooms = $derived(
@@ -16,21 +32,18 @@
 </script>
 
 <div class="building-query-wrapper">
-  {#if building}
+  {#if buildingTitle}
     <div class="building-header">
-      <h2 class="building-title">{building.building_name}</h2>
-      {#if building.directions}
+      <h2 class="building-title">{buildingTitle}</h2>
+      {#if building?.directions}
         <p class="building-desc">{building.directions}</p>
       {/if}
-      {#if building.lon && building.lat}
+      {#if buildingCoords}
         <button
           class="get-directions-btn"
           onclick={() => {
             locationStore.requestLocation();
-            locationStore.setDestination([
-              building.lon ?? 0,
-              building.lat ?? 0,
-            ]);
+            locationStore.setDestination(buildingCoords);
           }}
         >
           Get Directions

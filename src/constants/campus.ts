@@ -1,10 +1,7 @@
 export const CITU_CAMPUS_NAME = "Cebu Institute of Technology - University";
 export const CITU_CAMPUS_SHORT_NAME = "CIT-U";
 
-export const CITU_CAMPUS_CENTER: [number, number] = [
-  123.88047,
-  10.29578,
-];
+export const CITU_CAMPUS_CENTER: [number, number] = [123.88047, 10.29578];
 
 export const CITU_DEFAULT_ZOOM = 17.2;
 export const CITU_DEFAULT_PITCH = 55;
@@ -27,6 +24,25 @@ export type CituBuildingLabel = {
   fullName?: string;
   coords: [number, number];
 };
+
+export function getCituBuildingSearchValues(label: CituBuildingLabel) {
+  return [label.name, label.fullName].filter((value): value is string =>
+    Boolean(value),
+  );
+}
+
+export function getCituBuildingDisplayName(label: CituBuildingLabel) {
+  return label.fullName ?? label.name;
+}
+
+export function findCituBuildingLabel(value: string) {
+  const normalizedValue = value.trim().toLowerCase();
+  return CITU_BUILDING_LABELS.find((label) =>
+    getCituBuildingSearchValues(label).some(
+      (searchValue) => searchValue.toLowerCase() === normalizedValue,
+    ),
+  );
+}
 
 export const CITU_BUILDING_LABELS: CituBuildingLabel[] = [
   {
@@ -58,9 +74,12 @@ export const CITU_BUILDING_LABELS: CituBuildingLabel[] = [
     coords: [123.8793966, 10.2960048],
   },
   {
-    name: "Elementary Rooms",
-    fullName: "Smart Classroom",
+    name: "Canteen",
     coords: [123.8804742, 10.2961022],
+  },
+  {
+    name: "Elementary Rooms",
+    coords: [123.880825, 10.29648],
   },
   {
     name: "SAL",

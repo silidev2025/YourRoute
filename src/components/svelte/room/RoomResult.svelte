@@ -101,7 +101,7 @@
         No directions? <a
           href="https://docs.google.com/forms/d/e/1FAIpQLSdius5C7OyC1klraq71fFwWPZNvNk_iDLFyhCNir_ccC07Q7Q/viewform?usp=dialog"
           target="_blank"
-          rel="noreferrer"><strong>Contribute to CitMap</strong></a
+          rel="noreferrer"><strong>Contribute to YourRoute</strong></a
         >
       </p>
     {/if}
@@ -120,7 +120,7 @@
             No directions? <a
               href="https://docs.google.com/forms/d/e/1FAIpQLSdius5C7OyC1klraq71fFwWPZNvNk_iDLFyhCNir_ccC07Q7Q/viewform?usp=dialog"
               target="_blank"
-              rel="noreferrer"><strong>Contribute to CitMap</strong></a
+              rel="noreferrer"><strong>Contribute to YourRoute</strong></a
             >
           </p>
         {/if}
@@ -222,6 +222,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    max-width: 100%;
   }
 
   .subtitle-badge p {
@@ -229,6 +230,7 @@
     font-size: 0.75rem;
     color: #4f4f4f;
     margin: 0;
+    overflow-wrap: anywhere;
   }
 
   .room-directions {
@@ -287,11 +289,13 @@
       display: flex;
       justify-content: space-between;
       align-items: baseline;
+      gap: 0.75rem;
       button.schedule-section__opener {
         all: unset;
         font-size: 0.875rem;
         font-weight: 600;
-        padding: 0.25rem 1rem;
+        padding: 0.375rem 0.875rem;
+        min-height: 2.25rem;
         background-color: hsl(5, 53%, 32%);
         color: white;
         border-radius: 8px;
@@ -299,6 +303,8 @@
         display: flex;
         gap: 0.25rem;
         align-items: center;
+        justify-content: center;
+        white-space: nowrap;
       }
       button.schedule-section__opener:disabled {
         cursor: not-allowed;
@@ -331,6 +337,7 @@
     text-decoration: none;
     display: inline-flex;
     align-items: center;
+    min-height: 2.25rem;
   }
   .map-links a:hover,
   .map-links a:focus-visible {
@@ -342,7 +349,8 @@
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    padding: 0.25rem 0.75rem;
+    padding: 0.375rem 0.75rem;
+    min-height: 2.25rem;
     background-color: hsl(5, 53%, 32%);
     color: white;
     border: none;
@@ -361,5 +369,45 @@
     margin: 0.25rem 0;
     color: #666666;
     font-size: 0.875rem;
+  }
+
+  @media screen and (max-width: 30rem) {
+    .room-details-container {
+      gap: 0.625rem;
+    }
+
+    .subtitle-badge {
+      align-items: flex-start;
+      text-align: left;
+    }
+
+    .building-note {
+      padding: 0.75rem;
+      margin-block: 0.25rem;
+    }
+
+    .schedule-section {
+      .schedule-section__header {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .schedule-section__opener {
+        width: 100%;
+        box-sizing: border-box;
+      }
+    }
+
+    .map-links {
+      flex-direction: column;
+    }
+
+    .map-links a,
+    .get-directions-btn {
+      width: 100%;
+      justify-content: center;
+      box-sizing: border-box;
+    }
   }
 </style>

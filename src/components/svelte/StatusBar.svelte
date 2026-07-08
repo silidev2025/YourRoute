@@ -94,6 +94,8 @@
     border-radius: 1rem;
     box-shadow: 0 2px 0.5rem 0 hsla(0, 0%, 0%, 0.2);
     transition: all 0.2s ease;
+    max-width: 100%;
+    align-self: flex-start;
 
     .status-toggle {
       display: none;
@@ -104,6 +106,7 @@
       font: inherit;
       padding: 0;
       cursor: pointer;
+      min-height: 2.25rem;
     }
 
     .content-wrapper {
@@ -195,15 +198,21 @@
       padding: 0.5rem 1rem;
       gap: 0.5rem;
       flex-direction: column;
+      width: min(22rem, 100%);
+      border-radius: 999px;
 
       .status-toggle {
         display: flex;
       }
 
+      &.is-open {
+        border-radius: 0.875rem;
+      }
+
       .content-wrapper {
         display: none;
         flex-direction: column;
-        gap: 0.25rem;
+        gap: 0.625rem;
         padding-top: 0.5rem;
         border-top: 1px solid #eee;
         width: 100%;
@@ -215,15 +224,18 @@
 
       .directions-progress {
         width: 100%;
-        justify-content: space-between;
+        align-items: stretch;
+        flex-direction: column;
+        justify-content: flex-start;
+        gap: 0.375rem;
         flex-basis: auto;
       }
 
       .metadata {
         width: 100%;
-        align-items: center;
+        align-items: flex-start;
         flex-wrap: wrap;
-        gap: 0.25rem;
+        gap: 0.375rem 0.5rem;
 
         & > *:not(:last-child),
         & > *:not(:first-child) {
@@ -238,6 +250,13 @@
         .app-version {
           justify-content: flex-start;
         }
+      }
+
+      .messenger-link,
+      .developer-btn,
+      .app-version .changelog-link {
+        min-height: 2rem;
+        align-items: center;
       }
     }
   }

@@ -237,8 +237,8 @@
     }
 
     button {
-      width: 2rem;
-      height: 2rem;
+      width: 2.5rem;
+      height: 2.5rem;
     }
   }
 </style>

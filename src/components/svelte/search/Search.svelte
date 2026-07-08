@@ -141,6 +141,8 @@
     position: relative;
     width: min(25.75rem, calc(50% - 4rem));
     pointer-events: auto;
+    max-width: 100%;
+    z-index: 12;
   }
 
   .search-focused:focus-within :first-child + :global(*) {
@@ -157,12 +159,15 @@
     padding: 0.875rem 1rem;
     gap: 0.5rem;
     flex-shrink: 0;
+    min-height: 3rem;
   }
 
   @media screen and (max-width: 48rem) {
     .search-filter {
       pointer-events: auto;
       border-radius: 2rem; /* Pill shape for mobile */
+      min-height: 3.25rem;
+      padding: 0.75rem 0.875rem;
     }
     .search-filter-container {
       width: 100%;
@@ -189,9 +194,16 @@
     outline: none;
     padding-left: 1.75rem;
     font-size: 0.875rem;
+    line-height: 1.35;
     color: black;
     background: transparent;
     text-overflow: ellipsis;
+  }
+
+  @media screen and (max-width: 48rem) {
+    input[type="text"] {
+      font-size: 1rem;
+    }
   }
 
   input[type="text"]::placeholder {
@@ -202,22 +214,23 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
+    flex-shrink: 0;
   }
 
-  .clear-btn,
-  .filter-btn {
+  .clear-btn {
     all: unset;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 2rem;
+    height: 2rem;
     color: black;
-    border-radius: 0.25rem;
+    border-radius: 999px;
     transition: background-color 0.125s;
   }
 
-  .clear-btn:hover,
-  .filter-btn:hover {
+  .clear-btn:hover {
     background-color: #f0f0f0;
   }
 

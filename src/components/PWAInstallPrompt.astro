@@ -1,0 +1,285 @@
+<div
+  id="pwa-install-prompt"
+  class="pwa-install-prompt"
+  role="dialog"
+  aria-live="polite"
+  aria-labelledby="pwa-install-title"
+  hidden
+>
+  <div class="pwa-install-copy">
+    <strong id="pwa-install-title">Install YourRoute</strong>
+    <span id="pwa-install-message"
+      >Keep the campus navigator ready from your home screen.</span
+    >
+  </div>
+  <div class="pwa-install-actions">
+    <button type="button" id="pwa-install-action">Install</button>
+    <button
+      type="button"
+      id="pwa-install-close"
+      aria-label="Dismiss install prompt"
+    >
+      Later
+    </button>
+  </div>
+</div>
+
+<script is:inline>
+  (() => {
+    const tunnelHost =
+      /\.trycloudflare\.com$/i.test(window.location.hostname) ||
+      /\.loca\.lt$/i.test(window.location.hostname);
+    const forcePrompt = new URLSearchParams(window.location.search).has(
+      "installPrompt",
+    );
+
+    if (!tunnelHost && !forcePrompt) return;
+
+    const standalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      window.navigator.standalone === true;
+    if (standalone) return;
+
+    const promptEl = document.getElementById("pwa-install-prompt");
+    const titleEl = document.getElementById("pwa-install-title");
+    const messageEl = document.getElementById("pwa-install-message");
+    const actionButton = document.getElementById("pwa-install-action");
+    const closeButton = document.getElementById("pwa-install-close");
+    if (!promptEl || !titleEl || !messageEl || !actionButton || !closeButton) {
+      return;
+    }
+
+    const dismissedKey = "yourroute:pwa-install-dismissed-at";
+    const dismissedAt = Number(window.localStorage.getItem(dismissedKey) ?? 0);
+    const hideForMs = 24 * 60 * 60 * 1000;
+    if (!forcePrompt && Date.now() - dismissedAt < hideForMs) return;
+
+    const ua = window.navigator.userAgent;
+    const isiOS =
+      /iphone|ipad|ipod/i.test(ua) ||
+      (window.navigator.platform === "MacIntel" &&
+        window.navigator.maxTouchPoints > 1);
+    const isAndroid = /android/i.test(ua);
+    let deferredInstallPrompt = null;
+    let promptVisible = false;
+    let pendingMode = null;
+    let modalObserver = null;
+
+    const hasBlockingModal = () => document.querySelector(".modal-set");
+
+    const stopWaitingForModal = () => {
+      modalObserver?.disconnect();
+      modalObserver = null;
+    };
+
+    const dismiss = () => {
+      pendingMode = null;
+      stopWaitingForModal();
+      window.localStorage.setItem(dismissedKey, String(Date.now()));
+      promptEl.hidden = true;
+    };
+
+    const applyPrompt = (mode) => {
+      promptVisible = true;
+      pendingMode = null;
+      stopWaitingForModal();
+      promptEl.dataset.mode = mode;
+      promptEl.hidden = false;
+
+      if (mode === "ios") {
+        titleEl.textContent = "Install YourRoute";
+        messageEl.textContent =
+          "On iPhone or iPad: tap Share, then Add to Home Screen.";
+        actionButton.textContent = "Got it";
+        actionButton.disabled = false;
+        return;
+      }
+
+      if (deferredInstallPrompt) {
+        titleEl.textContent = "Install YourRoute";
+        messageEl.textContent =
+          "Open faster next time and keep offline access ready.";
+        actionButton.textContent = "Install";
+        actionButton.disabled = false;
+        return;
+      }
+
+      titleEl.textContent = "Install YourRoute";
+      messageEl.textContent = isAndroid
+        ? "If the install button is unavailable, use Chrome menu, then Add to Home screen."
+        : "Use your browser menu to add YourRoute to your home screen.";
+      actionButton.textContent = "Got it";
+      actionButton.disabled = false;
+    };
+
+    const flushPendingPrompt = () => {
+      if (!pendingMode || promptVisible) return;
+
+      if (hasBlockingModal()) {
+        if (!modalObserver) {
+          modalObserver = new MutationObserver(() => {
+            if (!hasBlockingModal()) {
+              window.setTimeout(flushPendingPrompt, 260);
+            }
+          });
+          modalObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+          });
+        }
+        return;
+      }
+
+      applyPrompt(pendingMode);
+    };
+
+    const showPrompt = (mode) => {
+      if (promptVisible) {
+        if (mode === "native" && deferredInstallPrompt) {
+          applyPrompt(mode);
+        }
+        return;
+      }
+
+      pendingMode = mode === "native" || !pendingMode ? mode : pendingMode;
+      window.setTimeout(flushPendingPrompt, 0);
+    };
+
+    window.addEventListener("beforeinstallprompt", (event) => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      showPrompt("native");
+    });
+
+    window.addEventListener("appinstalled", () => {
+      deferredInstallPrompt = null;
+      promptEl.hidden = true;
+      window.localStorage.setItem(dismissedKey, String(Date.now()));
+    });
+
+    actionButton.addEventListener("click", async () => {
+      if (!deferredInstallPrompt) {
+        dismiss();
+        return;
+      }
+
+      const promptEvent = deferredInstallPrompt;
+      deferredInstallPrompt = null;
+      promptEl.hidden = true;
+      promptEvent.prompt();
+      try {
+        await promptEvent.userChoice;
+      } finally {
+        window.localStorage.setItem(dismissedKey, String(Date.now()));
+      }
+    });
+
+    closeButton.addEventListener("click", dismiss);
+
+    window.setTimeout(() => {
+      if (promptVisible) return;
+      if (isiOS) {
+        showPrompt("ios");
+      } else if (isAndroid || forcePrompt) {
+        showPrompt("fallback");
+      }
+    }, 1400);
+  })();
+</script>
+
+<style>
+  .pwa-install-prompt[hidden] {
+    display: none;
+  }
+
+  .pwa-install-prompt {
+    position: fixed;
+    left: 50%;
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+    z-index: 80;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: min(35rem, calc(100vw - 1rem));
+    padding: 0.75rem;
+    color: #1d1d1d;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 0.5rem;
+    box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.22);
+    transform: translateX(-50%);
+    backdrop-filter: blur(12px);
+  }
+
+  .pwa-install-copy {
+    display: grid;
+    min-width: 0;
+    gap: 0.18rem;
+  }
+
+  .pwa-install-copy strong,
+  .pwa-install-copy span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pwa-install-copy strong {
+    font-size: 0.95rem;
+    line-height: 1.1;
+  }
+
+  .pwa-install-copy span {
+    color: #555555;
+    font-size: 0.8rem;
+    font-weight: 650;
+    line-height: 1.25;
+  }
+
+  .pwa-install-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .pwa-install-actions button {
+    box-sizing: border-box;
+    min-height: 2.25rem;
+    padding: 0 0.8rem;
+    font-size: 0.82rem;
+    font-weight: 850;
+    line-height: 1;
+    border-radius: 0.45rem;
+    cursor: pointer;
+  }
+
+  #pwa-install-action {
+    color: #ffffff;
+    background: hsl(5, 53%, 32%);
+  }
+
+  #pwa-install-close {
+    color: hsl(5, 53%, 32%);
+    background: #f4eeee;
+  }
+
+  @media screen and (max-width: 36rem) {
+    .pwa-install-prompt {
+      align-items: stretch;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+
+    .pwa-install-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .pwa-install-actions button {
+      justify-content: center;
+      text-align: center;
+    }
+  }
+</style>

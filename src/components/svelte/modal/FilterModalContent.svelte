@@ -73,6 +73,9 @@
     gap: 0.5rem;
   }
   .filter-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     margin-bottom: 1rem;
     button.active {
       border-color: transparent;
@@ -85,6 +88,7 @@
     button {
       font-size: 0.875rem;
       padding: 0.5rem 1rem;
+      min-height: 2.5rem;
       border-radius: 0.25rem;
       border: 1px solid hsl(0, 0%, 83%);
       transition: all 0.125s;
@@ -93,6 +97,18 @@
         border-color: hsl(5, 53%, 32%);
         color: hsl(5, 53%, 32%);
       }
+    }
+  }
+
+  @media screen and (max-width: 30rem) {
+    .filters {
+      flex-direction: column;
+    }
+
+    .filters-wrap button {
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center;
     }
   }
 </style>
