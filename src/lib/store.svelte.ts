@@ -13,6 +13,7 @@ type LocationRequestOptions = {
 };
 
 type NavigationMode = "live" | "demo";
+export type NavigationAvatarModel = "cat" | "dog" | "bird" | "student" | "hulk";
 
 interface ModalStoreState {
   open: boolean;
@@ -345,11 +346,40 @@ class NavigationStore {
   distanceToNextMeters: number | null = $state(null);
   distanceToRouteMeters: number | null = $state(null);
   indoorViewOpen = $state(false);
+  avatarModel: NavigationAvatarModel = $state("cat");
 
   isNavigating = $derived(this.activeRoute !== null);
   currentStep = $derived(this.activeRoute?.steps[this.activeStepIndex] ?? null);
   avatarCoords = $derived(this.currentStep?.coords ?? null);
   totalSteps = $derived(this.activeRoute?.steps.length ?? 0);
+
+  initAvatarModel = () => {
+    try {
+      const savedModel = window.localStorage.getItem(
+        "yourroute:navigation-avatar",
+      );
+      if (
+        savedModel === "cat" ||
+        savedModel === "dog" ||
+        savedModel === "bird" ||
+        savedModel === "student" ||
+        savedModel === "hulk"
+      ) {
+        this.avatarModel = savedModel;
+      }
+    } catch {
+      // Keep the default model when storage is unavailable.
+    }
+  };
+
+  setAvatarModel = (model: NavigationAvatarModel) => {
+    this.avatarModel = model;
+    try {
+      window.localStorage.setItem("yourroute:navigation-avatar", model);
+    } catch {
+      // The in-memory selection still applies for this session.
+    }
+  };
 
   private distanceMeters(from: LngLat, to: LngLat) {
     const earthRadiusMeters = 6371000;

@@ -1,6 +1,25 @@
 <script lang="ts">
-  import { Box, ChevronLeft, ChevronRight, Route, X } from "@lucide/svelte";
-  import { locationStore, navigationStore } from "../../lib/store.svelte";
+  import {
+    Box,
+    BicepsFlexed,
+    Bird,
+    Cat,
+    Check,
+    ChevronLeft,
+    ChevronRight,
+    Dog,
+    Palette,
+    Route,
+    UserRound,
+    X,
+  } from "@lucide/svelte";
+  import {
+    locationStore,
+    navigationStore,
+    type NavigationAvatarModel,
+  } from "../../lib/store.svelte";
+
+  let modelPickerOpen = $state(false);
 
   const route = $derived(navigationStore.activeRoute);
   const currentStep = $derived(navigationStore.currentStep);
@@ -47,6 +66,11 @@
 
   function toggleIndoorView() {
     navigationStore.toggleIndoorView();
+  }
+
+  function selectAvatar(model: NavigationAvatarModel) {
+    navigationStore.setAvatarModel(model);
+    modelPickerOpen = false;
   }
 </script>
 
@@ -96,6 +120,17 @@
         <Box size="18" />
       </button>
       <button
+        class:active={modelPickerOpen}
+        type="button"
+        title="Choose 3D navigation model"
+        aria-label="Choose 3D navigation model"
+        aria-expanded={modelPickerOpen}
+        aria-controls="navigation-model-picker"
+        onclick={() => (modelPickerOpen = !modelPickerOpen)}
+      >
+        <Palette size="18" />
+      </button>
+      <button
         type="button"
         title="End navigation"
         aria-label="End navigation"
@@ -104,6 +139,128 @@
         <X size="18" />
       </button>
     </div>
+    {#if modelPickerOpen}
+      <div
+        id="navigation-model-picker"
+        class="model-picker"
+        role="group"
+        aria-label="Choose 3D navigation model"
+      >
+        <strong>Choose 3D guide</strong>
+        <div class="model-picker__options">
+          <button
+            type="button"
+            class="model-option"
+            class:selected={navigationStore.avatarModel === "cat"}
+            onclick={() => selectAvatar("cat")}
+          >
+            <span class="model-option__icon"><Cat size="20" /></span>
+            <span>
+              <b>Cat</b>
+              <small>Animated campus guide • Offline</small>
+            </span>
+            {#if navigationStore.avatarModel === "cat"}
+              <Check size="18" />
+            {/if}
+          </button>
+          <button
+            type="button"
+            class="model-option"
+            class:selected={navigationStore.avatarModel === "dog"}
+            onclick={() => selectAvatar("dog")}
+          >
+            <span class="model-option__icon"><Dog size="20" /></span>
+            <span>
+              <b>Dog</b>
+              <small>Lightweight companion • Offline</small>
+            </span>
+            {#if navigationStore.avatarModel === "dog"}
+              <Check size="18" />
+            {/if}
+          </button>
+          <button
+            type="button"
+            class="model-option"
+            class:selected={navigationStore.avatarModel === "bird"}
+            onclick={() => selectAvatar("bird")}
+          >
+            <span class="model-option__icon"><Bird size="20" /></span>
+            <span>
+              <b>Bird</b>
+              <small>Animated flying guide • Offline</small>
+            </span>
+            {#if navigationStore.avatarModel === "bird"}
+              <Check size="18" />
+            {/if}
+          </button>
+          <button
+            type="button"
+            class="model-option"
+            class:selected={navigationStore.avatarModel === "student"}
+            onclick={() => selectAvatar("student")}
+          >
+            <span class="model-option__icon"><UserRound size="20" /></span>
+            <span>
+              <b>Student</b>
+              <small>Rigged character • Offline</small>
+            </span>
+            {#if navigationStore.avatarModel === "student"}
+              <Check size="18" />
+            {/if}
+          </button>
+          <button
+            type="button"
+            class="model-option"
+            class:selected={navigationStore.avatarModel === "hulk"}
+            onclick={() => selectAvatar("hulk")}
+          >
+            <span class="model-option__icon"><BicepsFlexed size="20" /></span>
+            <span>
+              <b>Hulk</b>
+              <small>Animated strong guide • Offline</small>
+            </span>
+            {#if navigationStore.avatarModel === "hulk"}
+              <Check size="18" />
+            {/if}
+          </button>
+        </div>
+        <details class="model-credits">
+          <summary>Model credits</summary>
+          <div>
+            <a
+              href="https://sketchfab.com/3d-models/oiiaioooooiai-cat-30d27bf7fb224849b76e208a6eccdb36"
+              target="_blank"
+              rel="noreferrer">Cat by Zhuier</a
+            >
+            <a
+              href="https://sketchfab.com/3d-models/low-poly-dog-335f2250195c407bac91695fbdd193e1"
+              target="_blank"
+              rel="noreferrer">Dog by Rodesqa</a
+            >
+            <a
+              href="https://sketchfab.com/3d-models/low-poly-bird-animated-82ada91f0ac64ab595fbc3dc994a3590"
+              target="_blank"
+              rel="noreferrer">Bird by Charlie Tinley</a
+            >
+            <a
+              href="https://sketchfab.com/3d-models/low-poly-rigged-character-free-9dba83ce8a3e4a9ab13bd991e7276621"
+              target="_blank"
+              rel="noreferrer">Student by Legend</a
+            >
+            <a
+              href="https://sketchfab.com/3d-models/hulk-96274605878d4a4e9c2b964fd5bd9ee1"
+              target="_blank"
+              rel="noreferrer">Hulk by shreyhaldkar0</a
+            >
+            <a
+              href="https://creativecommons.org/licenses/by/4.0/"
+              target="_blank"
+              rel="noreferrer">CC BY 4.0</a
+            >
+          </div>
+        </details>
+      </div>
+    {/if}
   </section>
 {/if}
 
@@ -181,6 +338,117 @@
     gap: 0.35rem;
   }
 
+  .model-picker {
+    position: absolute;
+    right: 0.625rem;
+    bottom: calc(100% + 0.5rem);
+    z-index: 2;
+    display: grid;
+    gap: 0.55rem;
+    width: min(18rem, calc(100vw - 2rem));
+    max-height: min(32rem, calc(100dvh - 7rem));
+    padding: 0.7rem;
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid #d7d7d7;
+    border-radius: 0.75rem;
+    box-shadow: 0 0.8rem 2rem rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(12px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .model-picker > strong {
+    font-size: 0.85rem;
+  }
+
+  .model-picker__options {
+    display: grid;
+    gap: 0.4rem;
+  }
+
+  button.model-option {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 1.25rem;
+    align-items: center;
+    justify-items: start;
+    gap: 0.55rem;
+    width: 100%;
+    height: auto;
+    min-height: 3.25rem;
+    padding: 0.45rem 0.55rem;
+    color: #292929;
+    text-align: left;
+    background: #ffffff;
+    border: 1px solid #dddddd;
+    border-radius: 0.6rem;
+    box-sizing: border-box;
+  }
+
+  button.model-option:hover,
+  button.model-option:focus-visible {
+    border-color: hsl(5, 53%, 32%);
+  }
+
+  button.model-option.selected {
+    color: hsl(5, 53%, 32%);
+    background: hsl(5, 45%, 97%);
+    border-color: hsl(5, 53%, 32%);
+  }
+
+  .model-option__icon {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    color: white;
+    background: hsl(5, 53%, 32%);
+    border-radius: 50%;
+  }
+
+  .model-option > span:nth-child(2) {
+    display: grid;
+    gap: 0.1rem;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .model-option > :global(svg) {
+    justify-self: end;
+  }
+
+  .model-option b {
+    font-size: 0.82rem;
+  }
+
+  .model-option small {
+    color: #666666;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  .model-credits {
+    padding-top: 0.15rem;
+    color: #666666;
+    font-size: 0.7rem;
+  }
+
+  .model-credits summary {
+    width: max-content;
+    color: hsl(5, 53%, 32%);
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .model-credits div {
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.45rem 0.2rem 0.1rem;
+  }
+
+  .model-credits a {
+    color: #555555;
+  }
+
   button {
     display: grid;
     place-items: center;
@@ -239,6 +507,12 @@
     button {
       width: 2.5rem;
       height: 2.5rem;
+    }
+
+    .model-picker {
+      right: 0;
+      left: 0;
+      width: auto;
     }
   }
 </style>

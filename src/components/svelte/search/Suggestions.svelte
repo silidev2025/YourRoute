@@ -5,7 +5,9 @@
     getCituBuildingSearchValues,
     findCituBuildingLabel,
   } from "../../../constants/campus";
+  import { GLE_ROOM_CODES } from "../../../constants/gle-rooms";
   import { ROOM_ROUTES } from "../../../constants/room-routes";
+  import { getAppData } from "../../../lib/context";
   import { queryStore, type QueryStoreState } from "../../../lib/store.svelte";
   import SearchQuerySuggestion from "./SearchQuerySuggestion.svelte";
   import Suggestion from "./Suggestion.svelte";
@@ -15,14 +17,15 @@
     category: Exclude<QueryStoreState["category"], null>;
   };
 
+  const { rooms } = getAppData();
+
   const CITU_ROOM_CODES = Array.from(
     new Set([
-      "GLE 201",
-      "RTL 302",
-      "ALLIED 102",
+      ...rooms.map((room) => room.code),
+      ...GLE_ROOM_CODES,
       ...Object.values(ROOM_ROUTES).map((route) => route.roomCode),
-    ]),
-  );
+    ].filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
   const suggestedResult = $derived<SearchSuggestion[]>(
     getSuggestions(queryStore.inputValue),
@@ -32,7 +35,14 @@
   );
 
   function matchesSearch(values: string[], searchString: string) {
-    return values.some((value) => value.toLowerCase().includes(searchString));
+    const compactSearch = searchString.replace(/\s+/g, "");
+    return values.some((value) => {
+      const normalizedValue = value.toLowerCase();
+      return (
+        normalizedValue.includes(searchString) ||
+        normalizedValue.replace(/\s+/g, "").includes(compactSearch)
+      );
+    });
   }
 
   function isCituSuggestion(suggestion: SearchSuggestion) {
@@ -59,7 +69,7 @@
     }));
 
     const roomResult = CITU_ROOM_CODES.filter((roomCode) =>
-      roomCode.toLowerCase().includes(searchString),
+      matchesSearch([roomCode], searchString),
     ).map((roomCode) => ({
       value: roomCode,
       category: "room" as const,
