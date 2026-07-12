@@ -139,6 +139,14 @@ bun run build
 
 [MIT License](LICENSE)
 
+### Third-party assets
+
+- [Oiiaioooooiai Cat](https://sketchfab.com/3d-models/oiiaioooooiai-cat-30d27bf7fb224849b76e208a6eccdb36) by [Zhuier](https://sketchfab.com/Zhuier), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The model is used as the indoor navigation guide.
+- [Low Poly Dog](https://sketchfab.com/3d-models/low-poly-dog-335f2250195c407bac91695fbdd193e1) by [Rodesqa](https://sketchfab.com/rodesqa), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- [Low Poly Bird (Animated)](https://sketchfab.com/3d-models/low-poly-bird-animated-82ada91f0ac64ab595fbc3dc994a3590) by [Charlie Tinley](https://sketchfab.com/Tnkii), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- [Low poly rigged character](https://sketchfab.com/3d-models/low-poly-rigged-character-free-9dba83ce8a3e4a9ab13bd991e7276621) by [Legend](https://sketchfab.com/Legend_01), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- [Hulk](https://sketchfab.com/3d-models/hulk-96274605878d4a4e9c2b964fd5bd9ee1) by [shreyhaldkar0](https://sketchfab.com/shreyhaldkar0), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
 ## Developer
 
 Developed by Francis Dave P. Mancia

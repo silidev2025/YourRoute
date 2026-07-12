@@ -8,38 +8,66 @@
   import { getAppData } from "../../../lib/context";
   import Classes from "./Classes.svelte";
   import { CornerRightUp } from "@lucide/svelte";
+  import { findCituBuildingLabel } from "../../../constants/campus";
+  import { getGleRoomInfo } from "../../../constants/gle-rooms";
   import { getRoomRoute } from "../../../constants/room-routes";
 
   const { rooms, classesMap } = getAppData();
 
+  const normalizedRoomCode = $derived(
+    queryStore.queryValue.trim().replace(/\s+/g, " ").toUpperCase(),
+  );
   const roomData = $derived(
-    rooms.find((r) => r.code === queryStore.queryValue),
+    rooms.find((room) => room.code.toUpperCase() === normalizedRoomCode),
   );
   const roomRoute = $derived(getRoomRoute(queryStore.queryValue));
+  const gleRoom = $derived(getGleRoomInfo(queryStore.queryValue));
   const displayRoom = $derived.by(() => {
     if (roomData) return roomData;
-    if (!roomRoute) return null;
+    if (roomRoute) {
+      const destination = roomRoute.steps[roomRoute.steps.length - 1]?.coords;
+      return {
+        id: -1,
+        code: roomRoute.roomCode,
+        directions: roomRoute.roomDirections,
+        building: destination
+          ? {
+              name: roomRoute.buildingName,
+              lat: destination[1],
+              lon: destination[0],
+              directions: roomRoute.buildingDirections,
+            }
+          : null,
+        collegeName: null,
+        divisionName: null,
+      };
+    }
 
-    const destination = roomRoute.steps[roomRoute.steps.length - 1]?.coords;
-    return {
-      id: -1,
-      code: roomRoute.roomCode,
-      directions: roomRoute.roomDirections,
-      building: destination
-        ? {
-            name: roomRoute.buildingName,
-            lat: destination[1],
-            lon: destination[0],
-            directions: roomRoute.buildingDirections,
-          }
-        : null,
-      collegeName: null,
-      divisionName: null,
-    };
+    if (gleRoom) {
+      const gleBuilding = findCituBuildingLabel("GLE");
+      return {
+        id: -1,
+        code: gleRoom.roomCode,
+        directions: gleRoom.directions,
+        building: gleBuilding
+          ? {
+              name: gleBuilding.fullName ?? gleBuilding.name,
+              lat: gleBuilding.coords[1],
+              lon: gleBuilding.coords[0],
+              directions:
+                "Enter the GLE Building, then use the indicated staircase to reach the room's floor.",
+            }
+          : null,
+        collegeName: null,
+        divisionName: null,
+      };
+    }
+
+    return null;
   });
 
   const classesData = $derived(
-    roomData ? classesMap.get(roomData.code) || [] : [],
+    displayRoom ? classesMap.get(displayRoom.code) || [] : [],
   );
 
   function startDirections() {

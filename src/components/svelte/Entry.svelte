@@ -26,6 +26,7 @@
     localStorage.setItem("recent-search", JSON.stringify(queryHistory));
   };
   onMount(() => {
+    navigationStore.initAvatarModel();
     locationStore.initFromUrl();
     const indoorMode = new URLSearchParams(window.location.search).get(
       "indoorMode",

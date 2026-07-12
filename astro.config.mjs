@@ -16,7 +16,7 @@ export default defineConfig({
       registerType: "autoUpdate",
       workbox: {
         globPatterns: [
-          "**/*.{js,css,html,ico,png,svg,webmanifest,json,jpg,ttf,wasm}",
+          "**/*.{js,css,html,ico,png,svg,webmanifest,json,jpg,ttf,wasm,glb}",
         ],
         maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         navigateFallback: "/",
@@ -39,7 +39,7 @@ export default defineConfig({
           },
           {
             urlPattern:
-              /\/(?:manifest\.webmanifest|favicon\.ico|favicon\.svg|apple-touch-icon\.png|pwa-\d+x\d+\.png|InterVariable(?:-Italic)?\.ttf)$/,
+              /\/(?:manifest\.webmanifest|favicon\.ico|apple-touch-icon\.png|pwa-\d+x\d+\.png|InterVariable(?:-Italic)?\.ttf)$/,
             handler: "CacheFirst",
             options: {
               cacheName: "app-static-assets",
@@ -75,17 +75,29 @@ export default defineConfig({
         short_name: "YourRoute",
         description:
           "An offline website built to help CITU students find their rooms across the Cebu Institute of Technology - University campus",
-        theme_color: "#a30e00",
+        id: "/",
+        start_url: "/",
+        scope: "/",
+        theme_color: "#872f38",
+        background_color: "#872f38",
         icons: [
           {
             src: "pwa-192x192.png",
             sizes: "192x192",
             type: "image/png",
+            purpose: "any",
           },
           {
             src: "pwa-512x512.png",
             sizes: "512x512",
             type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "pwa-maskable-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
           },
         ],
         display_override: ["standalone"],

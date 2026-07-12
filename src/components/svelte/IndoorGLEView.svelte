@@ -2,7 +2,12 @@
   import { onMount } from "svelte";
   import { ChevronLeft, ChevronRight, LocateFixed, X } from "@lucide/svelte";
   import * as THREE from "three";
-  import { locationStore, navigationStore } from "../../lib/store.svelte";
+  import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+  import {
+    locationStore,
+    navigationStore,
+    type NavigationAvatarModel,
+  } from "../../lib/store.svelte";
 
   let container: HTMLDivElement;
   let cameraMovedByUser = $state(false);
@@ -16,12 +21,17 @@
   const ROOM_SIDE_Z = -3.35;
   const RAIL_SIDE_Z = 3.55;
   const SECOND_FLOOR_Y = FLOOR_HEIGHT;
+  const ROOM_X_POSITIONS = [-19.5, -11.7, -3.9, 3.9, 11.7, 19.5] as const;
 
   const routeTargets = [
     new THREE.Vector3(0, 0.32, 6.2),
     new THREE.Vector3(-7, 0.32, 4.9),
     new THREE.Vector3(-23.5, 0.32, 3.25),
-    new THREE.Vector3(-18, SECOND_FLOOR_Y + 0.32, ROOM_SIDE_Z + 0.45),
+    new THREE.Vector3(
+      ROOM_X_POSITIONS[0],
+      SECOND_FLOOR_Y + 0.32,
+      ROOM_SIDE_Z + 0.45,
+    ),
   ];
 
   const indoorRoutePoints = [
@@ -30,7 +40,11 @@
     new THREE.Vector3(-21.5, 0.18, 4.55),
     new THREE.Vector3(-24.2, 1.7, 2.1),
     new THREE.Vector3(-23.2, SECOND_FLOOR_Y + 0.12, 0.55),
-    new THREE.Vector3(-18, SECOND_FLOOR_Y + 0.12, ROOM_SIDE_Z + 0.45),
+    new THREE.Vector3(
+      ROOM_X_POSITIONS[0],
+      SECOND_FLOOR_Y + 0.12,
+      ROOM_SIDE_Z + 0.45,
+    ),
   ];
 
   function getTargetPosition() {
@@ -136,7 +150,17 @@
       return mesh;
     }
 
-    function addLabel(text: string, position: THREE.Vector3, tone = "#8a2d24") {
+    function addLabel(
+      text: string,
+      position: THREE.Vector3,
+      tone = "#8a2d24",
+      options: {
+        depthTest?: boolean;
+        width?: number;
+        height?: number;
+        fontSize?: number;
+      } = {},
+    ) {
       const canvas = document.createElement("canvas");
       canvas.width = 512;
       canvas.height = 160;
@@ -151,7 +175,7 @@
       ctx.lineWidth = 7;
       ctx.stroke();
       ctx.fillStyle = tone;
-      ctx.font = "700 54px Arial";
+      ctx.font = `700 ${options.fontSize ?? 54}px Arial`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(text, canvas.width / 2, 80);
@@ -162,12 +186,13 @@
         new THREE.SpriteMaterial({
           map: texture,
           transparent: true,
-          depthTest: false,
+          depthTest: options.depthTest ?? false,
+          depthWrite: false,
         }),
       );
       sprite.position.copy(position);
-      sprite.scale.set(4.7, 1.45, 1);
-      sprite.renderOrder = 10;
+      sprite.scale.set(options.width ?? 4.7, options.height ?? 1.45, 1);
+      sprite.renderOrder = options.depthTest ? 5 : 10;
       scene.add(sprite);
       labels.push(sprite);
     }
@@ -349,26 +374,39 @@
       whitePaint,
     );
 
-    addBox(
-      [5.2, 2.25, 0.16],
-      [-18, SECOND_FLOOR_Y + 1.25, ROOM_SIDE_Z - 0.1],
-      roomPanel,
-    );
-    addBox(
-      [1.18, 2.45, 0.22],
-      [-18, SECOND_FLOOR_Y + 1.18, ROOM_SIDE_Z + 0.08],
-      doorMat,
-    );
-    addBox(
-      [5.2, 2.25, 0.16],
-      [-12.2, SECOND_FLOOR_Y + 1.25, ROOM_SIDE_Z - 0.1],
-      roomPanel,
-    );
-    addBox(
-      [1.18, 2.45, 0.22],
-      [-12.2, SECOND_FLOOR_Y + 1.18, ROOM_SIDE_Z + 0.08],
-      doorMat,
-    );
+    for (let level = 1; level < FLOOR_COUNT; level += 1) {
+      const floorNumber = level + 1;
+      const floorY = level * FLOOR_HEIGHT;
+
+      ROOM_X_POSITIONS.forEach((roomX, roomIndex) => {
+        const roomNumber = `${floorNumber}0${roomIndex + 1}`;
+        addBox(
+          [6.1, 2.25, 0.16],
+          [roomX, floorY + 1.25, ROOM_SIDE_Z - 0.1],
+          roomPanel,
+        );
+        addBox(
+          [1.18, 2.45, 0.22],
+          [roomX, floorY + 1.18, ROOM_SIDE_Z + 0.08],
+          doorMat,
+        );
+        addLabel(
+          `GLE ${roomNumber}`,
+          new THREE.Vector3(roomX, floorY + 2.82, ROOM_SIDE_Z + 0.48),
+          "#8a2d24",
+          { depthTest: true, width: 4.25, height: 1.2, fontSize: 51 },
+        );
+      });
+
+      [-24.2, 24.2].forEach((stairX) => {
+        addLabel(
+          `${floorNumber}F`,
+          new THREE.Vector3(stairX, floorY + 2.35, 2.55),
+          "#333333",
+          { depthTest: true, width: 2.25, height: 1.15, fontSize: 62 },
+        );
+      });
+    }
 
     addStairs(-23.5, "left");
     addStairs(23.5, "right");
@@ -379,226 +417,179 @@
     );
     addLabel("Left Stairs", new THREE.Vector3(-23.5, FLOOR_HEIGHT + 1.35, 1.8));
     addLabel("Right Stairs", new THREE.Vector3(23.5, FLOOR_HEIGHT + 1.35, 1.8));
-    addLabel(
-      "GLE 201",
-      new THREE.Vector3(-18, SECOND_FLOOR_Y + 2.85, ROOM_SIDE_Z + 0.55),
-    );
-    addLabel(
-      "2F",
-      new THREE.Vector3(-21.8, SECOND_FLOOR_Y + 2.3, 2.55),
-      "#333333",
-    );
-    addLabel(
-      "8F",
-      new THREE.Vector3(-21.8, FLOOR_HEIGHT * 7 + 2.3, 2.55),
-      "#333333",
-    );
 
     addRouteRibbon(indoorRoutePoints, 0.22);
 
-    function createNavigationGuide() {
-      const guideMat = new THREE.MeshStandardMaterial({
-        color: 0xf4f2ec,
-        roughness: 0.34,
-        metalness: 0,
-      });
-      const guideShadeMat = new THREE.MeshStandardMaterial({
-        color: 0xe4e1d9,
-        roughness: 0.42,
-        metalness: 0,
-      });
-      const floorShadowMat = new THREE.MeshBasicMaterial({
-        color: 0x000000,
-        transparent: true,
-        opacity: 0.16,
-        depthWrite: false,
-      });
-      materials.push(guideMat, guideShadeMat, floorShadowMat);
+    const floorShadowMat = new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.16,
+      depthWrite: false,
+    });
+    materials.push(floorShadowMat);
 
-      const root = new THREE.Group();
-      const model = new THREE.Group();
-      model.rotation.x = 0.18;
-      model.scale.setScalar(1.12);
-      root.add(model);
-
-      const makeMesh = (
-        geometry: THREE.BufferGeometry,
-        mat: THREE.Material,
-      ) => {
-        const mesh = new THREE.Mesh(geometry, mat);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        return mesh;
-      };
-
-      const makeCapsule = (
-        radius: number,
-        length: number,
-        mat: THREE.Material,
-      ) => makeMesh(new THREE.CapsuleGeometry(radius, length, 10, 28), mat);
-
-      const torso = makeCapsule(0.34, 0.76, guideMat);
-      torso.position.set(0, 1.08, 0.02);
-      torso.scale.set(1, 1.02, 0.78);
-      model.add(torso);
-
-      const hips = makeMesh(
-        new THREE.SphereGeometry(0.31, 32, 22),
-        guideShadeMat,
-      );
-      hips.position.set(0, 0.66, -0.02);
-      hips.scale.set(1.24, 0.62, 0.86);
-      model.add(hips);
-
-      const belly = makeMesh(new THREE.SphereGeometry(0.23, 32, 20), guideMat);
-      belly.position.set(0, 0.94, 0.18);
-      belly.scale.set(1.2, 1.05, 0.36);
-      model.add(belly);
-
-      const neck = makeCapsule(0.12, 0.12, guideMat);
-      neck.position.set(0, 1.5, 0.02);
-      model.add(neck);
-
-      const head = makeMesh(new THREE.SphereGeometry(0.38, 44, 30), guideMat);
-      head.position.set(0, 1.84, 0.06);
-      head.scale.set(0.96, 1.15, 0.92);
-      head.castShadow = true;
-      model.add(head);
-
-      const shoulderBar = makeCapsule(0.12, 0.48, guideMat);
-      shoulderBar.position.set(0, 1.31, 0.04);
-      shoulderBar.rotation.z = Math.PI / 2;
-      model.add(shoulderBar);
-
-      const createArm = (side: -1 | 1) => {
-        const shoulder = new THREE.Group();
-        shoulder.position.set(side * 0.42, 1.25, 0.03);
-        shoulder.rotation.z = side * 0.13;
-
-        const upper = makeCapsule(0.11, 0.38, guideMat);
-        upper.position.y = -0.24;
-        shoulder.add(upper);
-
-        const elbow = makeMesh(
-          new THREE.SphereGeometry(0.12, 24, 16),
-          guideShadeMat,
-        );
-        elbow.position.y = -0.49;
-        shoulder.add(elbow);
-
-        const forearm = new THREE.Group();
-        forearm.position.y = -0.49;
-        forearm.rotation.x = -0.3;
-        shoulder.add(forearm);
-
-        const lower = makeCapsule(0.1, 0.34, guideMat);
-        lower.position.y = -0.2;
-        forearm.add(lower);
-
-        const hand = makeMesh(new THREE.SphereGeometry(0.13, 24, 16), guideMat);
-        hand.position.y = -0.42;
-        hand.scale.set(1.05, 0.82, 0.92);
-        forearm.add(hand);
-
-        model.add(shoulder);
-        return { shoulder, forearm };
-      };
-
-      const createLeg = (side: -1 | 1) => {
-        const hip = new THREE.Group();
-        hip.position.set(side * 0.19, 0.63, 0.01);
-
-        const upper = makeCapsule(0.145, 0.5, guideMat);
-        upper.position.y = -0.28;
-        upper.scale.set(0.9, 1, 0.82);
-        hip.add(upper);
-
-        const knee = makeMesh(
-          new THREE.SphereGeometry(0.15, 24, 16),
-          guideShadeMat,
-        );
-        knee.position.y = -0.58;
-        hip.add(knee);
-
-        const shin = new THREE.Group();
-        shin.position.y = -0.58;
-        hip.add(shin);
-
-        const lower = makeCapsule(0.125, 0.46, guideMat);
-        lower.position.y = -0.27;
-        lower.scale.set(0.88, 1, 0.82);
-        shin.add(lower);
-
-        const foot = makeMesh(new THREE.SphereGeometry(0.17, 28, 18), guideMat);
-        foot.position.set(0, -0.53, 0.18);
-        foot.scale.set(0.78, 0.42, 1.72);
-        shin.add(foot);
-
-        model.add(hip);
-        return { hip, shin, foot };
-      };
-
-      const leftArm = createArm(-1);
-      const rightArm = createArm(1);
-      const leftLeg = createLeg(-1);
-      const rightLeg = createLeg(1);
-
-      const floorShadow = makeMesh(
-        new THREE.CircleGeometry(0.7, 48),
-        floorShadowMat,
-      );
-      floorShadow.rotation.x = -Math.PI / 2;
-      floorShadow.position.y = 0.015;
-      floorShadow.scale.set(1.4, 0.6, 1);
-      floorShadow.castShadow = false;
-      floorShadow.receiveShadow = false;
-      root.add(floorShadow);
-
-      function update(
-        walkTime: number,
-        idleTime: number,
-        walkingAmount: number,
-      ) {
-        const walk = walkingAmount;
-        const stride = Math.sin(walkTime);
-        const counterStride = Math.sin(walkTime + Math.PI);
-        const doubleStep = Math.sin(walkTime * 2);
-        const breath = Math.sin(idleTime * 1.8) * 0.012;
-
-        model.position.y = breath + Math.max(0, doubleStep) * 0.045 * walk;
-        model.rotation.x = 0.2 + doubleStep * 0.022 * walk;
-        model.rotation.z = stride * 0.032 * walk;
-        head.position.y = 1.84 - Math.max(0, -doubleStep) * 0.028 * walk;
-
-        leftLeg.hip.rotation.x = stride * 0.5 * walk;
-        rightLeg.hip.rotation.x = counterStride * 0.5 * walk;
-        leftLeg.hip.rotation.z = -0.08 + Math.max(0, stride) * 0.08 * walk;
-        rightLeg.hip.rotation.z =
-          0.08 - Math.max(0, counterStride) * 0.08 * walk;
-        leftLeg.shin.rotation.x = Math.max(0, -stride) * 0.68 * walk;
-        rightLeg.shin.rotation.x = Math.max(0, -counterStride) * 0.68 * walk;
-        leftLeg.foot.rotation.x = -Math.max(0, stride) * 0.28 * walk;
-        rightLeg.foot.rotation.x = -Math.max(0, counterStride) * 0.28 * walk;
-
-        leftArm.shoulder.rotation.x = counterStride * 0.42 * walk - 0.18;
-        rightArm.shoulder.rotation.x = stride * 0.42 * walk - 0.2;
-        leftArm.shoulder.rotation.z = -0.22;
-        rightArm.shoulder.rotation.z = 0.22;
-        leftArm.shoulder.rotation.y = 0.12;
-        rightArm.shoulder.rotation.y = -0.12;
-        leftArm.forearm.rotation.x = -0.42 - Math.max(0, stride) * 0.22 * walk;
-        rightArm.forearm.rotation.x =
-          -0.42 - Math.max(0, counterStride) * 0.22 * walk;
-      }
-
-      update(0, 0, 0);
-      return { root, update };
-    }
-
-    const guide = createNavigationGuide();
-    const avatar = guide.root;
+    const avatar = new THREE.Group();
+    const floorShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(0.7, 48),
+      floorShadowMat,
+    );
+    floorShadow.rotation.x = -Math.PI / 2;
+    floorShadow.position.y = 0.015;
+    floorShadow.scale.set(1.4, 0.6, 1);
+    floorShadow.castShadow = false;
+    floorShadow.receiveShadow = false;
+    avatar.add(floorShadow);
     avatar.position.copy(getTargetPosition());
     scene.add(avatar);
+
+    type ExternalAvatarModel = NavigationAvatarModel;
+    type LoadedAvatar = {
+      object: THREE.Object3D;
+      mixer: THREE.AnimationMixer | null;
+      baseY: number;
+      baseRotationX: number;
+      baseRotationZ: number;
+    };
+
+    const externalAvatarDefinitions: Record<
+      ExternalAvatarModel,
+      {
+        label: string;
+        src: string;
+        targetHeight: number;
+        groundOffset?: number;
+        removeQuaternionTracks?: boolean;
+      }
+    > = {
+      cat: {
+        label: "cat",
+        src: "/models/oiiaioooooiai-cat.glb",
+        targetHeight: 1.45,
+        removeQuaternionTracks: true,
+      },
+      dog: {
+        label: "dog",
+        src: "/models/low-poly-dog.glb",
+        targetHeight: 1.05,
+      },
+      bird: {
+        label: "bird",
+        src: "/models/low-poly-bird-animated.glb",
+        targetHeight: 0.75,
+        groundOffset: 0.18,
+      },
+      student: {
+        label: "student",
+        src: "/models/low-poly-rigged-character.glb",
+        targetHeight: 2.05,
+      },
+      hulk: {
+        label: "Hulk",
+        src: "/models/hulk.glb",
+        targetHeight: 2.35,
+      },
+    };
+
+    let disposed = false;
+    const loadedAvatars = new Map<ExternalAvatarModel, LoadedAvatar>();
+    const loadingAvatars = new Set<ExternalAvatarModel>();
+    const failedAvatars = new Set<ExternalAvatarModel>();
+    const avatarLoader = new GLTFLoader();
+
+    function ensureAvatarLoaded(model: NavigationAvatarModel) {
+      if (
+        loadedAvatars.has(model) ||
+        loadingAvatars.has(model) ||
+        failedAvatars.has(model)
+      ) {
+        return;
+      }
+
+      const definition = externalAvatarDefinitions[model];
+      loadingAvatars.add(model);
+      avatarLoader.load(
+        definition.src,
+        (gltf) => {
+          loadingAvatars.delete(model);
+          if (disposed) return;
+
+          const modelObject = gltf.scene;
+          modelObject.traverse((object) => {
+            if (!(object instanceof THREE.Mesh)) return;
+            object.castShadow = true;
+            object.receiveShadow = true;
+
+            const meshMaterials = Array.isArray(object.material)
+              ? object.material
+              : [object.material];
+            meshMaterials.forEach((meshMaterial) => {
+              const map = (meshMaterial as THREE.MeshStandardMaterial).map;
+              if (map) {
+                map.anisotropy = Math.min(
+                  8,
+                  renderer.capabilities.getMaxAnisotropy(),
+                );
+              }
+            });
+          });
+
+          modelObject.updateMatrixWorld(true);
+          const bounds = new THREE.Box3().setFromObject(modelObject);
+          const size = bounds.getSize(new THREE.Vector3());
+          if (size.y > 0) {
+            modelObject.scale.setScalar(definition.targetHeight / size.y);
+          }
+
+          modelObject.updateMatrixWorld(true);
+          bounds.setFromObject(modelObject);
+          const center = bounds.getCenter(new THREE.Vector3());
+          modelObject.position.x -= center.x;
+          modelObject.position.y -= bounds.min.y;
+          modelObject.position.y += definition.groundOffset ?? 0;
+          modelObject.position.z -= center.z;
+          modelObject.visible = navigationStore.avatarModel === model;
+          avatar.add(modelObject);
+
+          let mixer: THREE.AnimationMixer | null = null;
+          const sourceClip = gltf.animations[0];
+          if (sourceClip) {
+            const tracks = definition.removeQuaternionTracks
+              ? sourceClip.tracks.filter(
+                  (track) => !(track instanceof THREE.QuaternionKeyframeTrack),
+                )
+              : sourceClip.tracks;
+            const clip = new THREE.AnimationClip(
+              `${sourceClip.name}-${model}`,
+              sourceClip.duration,
+              tracks,
+            );
+            mixer = new THREE.AnimationMixer(modelObject);
+            const action = mixer.clipAction(clip);
+            action.setLoop(THREE.LoopRepeat, Infinity);
+            action.play();
+          }
+
+          loadedAvatars.set(model, {
+            object: modelObject,
+            mixer,
+            baseY: modelObject.position.y,
+            baseRotationX: modelObject.rotation.x,
+            baseRotationZ: modelObject.rotation.z,
+          });
+        },
+        undefined,
+        (error) => {
+          loadingAvatars.delete(model);
+          failedAvatars.add(model);
+          console.warn(
+            `Unable to load the ${definition.label} navigation guide.`,
+            error,
+          );
+        },
+      );
+    }
+
+    ensureAvatarLoaded(navigationStore.avatarModel);
 
     const resize = () => {
       const width = container.clientWidth || window.innerWidth;
@@ -613,7 +604,6 @@
 
     let animationFrame = 0;
     let walkTime = 0;
-    let idleTime = 0;
     const previousAvatarPosition = avatar.position.clone();
     const defaultViewYaw = Math.atan2(6.5, 8.8);
     const defaultLookHeight = 1.05;
@@ -751,7 +741,6 @@
     const animate = () => {
       animationFrame = requestAnimationFrame(animate);
 
-      idleTime += 0.016;
       const target = getTargetPosition();
       avatar.position.lerp(target, 0.065);
       const movementDistance = avatar.position.distanceTo(
@@ -762,7 +751,33 @@
       if (walkingAmount > 0.02) {
         walkTime += 0.11 + walkingAmount * 0.12;
       }
-      guide.update(walkTime, idleTime, walkingAmount);
+      const selectedModel = navigationStore.avatarModel;
+      ensureAvatarLoaded(selectedModel);
+      const selectedExternalAvatar = loadedAvatars.get(selectedModel);
+
+      loadedAvatars.forEach((loadedAvatar, model) => {
+        loadedAvatar.object.visible =
+          model === selectedModel && selectedExternalAvatar !== undefined;
+      });
+      if (selectedExternalAvatar) {
+        const gait = Math.sin(walkTime);
+        const doubleStep = Math.sin(walkTime * 2);
+        const modelObject = selectedExternalAvatar.object;
+        modelObject.position.y =
+          selectedExternalAvatar.baseY +
+          Math.max(0, doubleStep) * 0.07 * walkingAmount;
+        modelObject.rotation.x =
+          selectedExternalAvatar.baseRotationX +
+          doubleStep * 0.035 * walkingAmount;
+        modelObject.rotation.z =
+          selectedExternalAvatar.baseRotationZ + gait * 0.065 * walkingAmount;
+
+        if (selectedExternalAvatar.mixer) {
+          selectedExternalAvatar.mixer.timeScale =
+            walkingAmount > 0.02 ? 1.15 : 0.25;
+          selectedExternalAvatar.mixer.update(0.016);
+        }
+      }
       updateRouteTraceFade(getRouteProgress(avatar.position));
 
       const nextTarget = getTargetPosition();
@@ -792,6 +807,7 @@
     animate();
 
     return () => {
+      disposed = true;
       cancelAnimationFrame(animationFrame);
       window.removeEventListener("resize", resize);
       renderer.domElement.removeEventListener("pointerdown", handlePointerDown);
@@ -806,8 +822,16 @@
         if (object instanceof THREE.Mesh) {
           object.geometry.dispose();
           if (Array.isArray(object.material)) {
-            object.material.forEach((mat) => mat.dispose());
+            object.material.forEach((mat) => {
+              Object.values(mat).forEach((value) => {
+                if (value instanceof THREE.Texture) value.dispose();
+              });
+              mat.dispose();
+            });
           } else {
+            Object.values(object.material).forEach((value) => {
+              if (value instanceof THREE.Texture) value.dispose();
+            });
             object.material.dispose();
           }
         }

@@ -6,11 +6,56 @@
   aria-labelledby="pwa-install-title"
   hidden
 >
-  <div class="pwa-install-copy">
-    <strong id="pwa-install-title">Install YourRoute</strong>
-    <span id="pwa-install-message"
-      >Keep the campus navigator ready from your home screen.</span
-    >
+  <div class="pwa-install-info">
+    <img
+      class="pwa-install-logo"
+      src="/cit-thumbnail.png"
+      alt=""
+      width="44"
+      height="44"
+    />
+    <div class="pwa-install-copy">
+      <strong id="pwa-install-title">Install YourRoute</strong>
+      <span id="pwa-install-message"
+        >Keep the campus navigator ready from your home screen.</span
+      >
+      <div id="pwa-ios-install-steps" class="ios-install-steps" hidden>
+        <div class="ios-install-step">
+          <span class="ios-step-number">1</span>
+          <span>
+            Tap Safari's Share button
+            <svg
+              aria-label="Share"
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M12 3v12"></path>
+              <path d="m8 7 4-4 4 4"></path>
+              <path d="M5 11v9h14v-9"></path>
+            </svg>
+            in the bottom toolbar.
+          </span>
+        </div>
+        <div class="ios-install-step">
+          <span class="ios-step-number">2</span>
+          <span>Scroll down and tap <strong>Add to Home Screen</strong>.</span>
+        </div>
+        <div class="ios-install-step">
+          <span class="ios-step-number">3</span>
+          <span>Enable <strong>Open as Web App</strong>, then tap Add.</span>
+        </div>
+        <div class="ios-share-direction" aria-hidden="true">
+          <span>Safari Share button is below</span>
+          <span class="ios-down-arrow">&darr;</span>
+        </div>
+      </div>
+    </div>
   </div>
   <div class="pwa-install-actions">
     <button type="button" id="pwa-install-action">Install</button>
@@ -26,15 +71,6 @@
 
 <script is:inline>
   (() => {
-    const tunnelHost =
-      /\.trycloudflare\.com$/i.test(window.location.hostname) ||
-      /\.loca\.lt$/i.test(window.location.hostname);
-    const forcePrompt = new URLSearchParams(window.location.search).has(
-      "installPrompt",
-    );
-
-    if (!tunnelHost && !forcePrompt) return;
-
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       window.navigator.standalone === true;
@@ -43,16 +79,19 @@
     const promptEl = document.getElementById("pwa-install-prompt");
     const titleEl = document.getElementById("pwa-install-title");
     const messageEl = document.getElementById("pwa-install-message");
+    const iosStepsEl = document.getElementById("pwa-ios-install-steps");
     const actionButton = document.getElementById("pwa-install-action");
     const closeButton = document.getElementById("pwa-install-close");
-    if (!promptEl || !titleEl || !messageEl || !actionButton || !closeButton) {
+    if (
+      !promptEl ||
+      !titleEl ||
+      !messageEl ||
+      !iosStepsEl ||
+      !actionButton ||
+      !closeButton
+    ) {
       return;
     }
-
-    const dismissedKey = "yourroute:pwa-install-dismissed-at";
-    const dismissedAt = Number(window.localStorage.getItem(dismissedKey) ?? 0);
-    const hideForMs = 24 * 60 * 60 * 1000;
-    if (!forcePrompt && Date.now() - dismissedAt < hideForMs) return;
 
     const ua = window.navigator.userAgent;
     const isiOS =
@@ -75,7 +114,6 @@
     const dismiss = () => {
       pendingMode = null;
       stopWaitingForModal();
-      window.localStorage.setItem(dismissedKey, String(Date.now()));
       promptEl.hidden = true;
     };
 
@@ -85,12 +123,14 @@
       stopWaitingForModal();
       promptEl.dataset.mode = mode;
       promptEl.hidden = false;
+      iosStepsEl.hidden = true;
+      actionButton.setAttribute("aria-expanded", "false");
 
       if (mode === "ios") {
         titleEl.textContent = "Install YourRoute";
         messageEl.textContent =
-          "On iPhone or iPad: tap Share, then Add to Home Screen.";
-        actionButton.textContent = "Got it";
+          "On iPhone or iPad: install through Safari's Share menu.";
+        actionButton.textContent = "Show Steps";
         actionButton.disabled = false;
         return;
       }
@@ -154,10 +194,18 @@
     window.addEventListener("appinstalled", () => {
       deferredInstallPrompt = null;
       promptEl.hidden = true;
-      window.localStorage.setItem(dismissedKey, String(Date.now()));
     });
 
     actionButton.addEventListener("click", async () => {
+      if (promptEl.dataset.mode === "ios") {
+        iosStepsEl.hidden = false;
+        messageEl.textContent = "Follow these steps in Safari:";
+        actionButton.textContent = "Steps Shown";
+        actionButton.disabled = true;
+        actionButton.setAttribute("aria-expanded", "true");
+        return;
+      }
+
       if (!deferredInstallPrompt) {
         dismiss();
         return;
@@ -167,11 +215,7 @@
       deferredInstallPrompt = null;
       promptEl.hidden = true;
       promptEvent.prompt();
-      try {
-        await promptEvent.userChoice;
-      } finally {
-        window.localStorage.setItem(dismissedKey, String(Date.now()));
-      }
+      await promptEvent.userChoice;
     });
 
     closeButton.addEventListener("click", dismiss);
@@ -180,7 +224,7 @@
       if (promptVisible) return;
       if (isiOS) {
         showPrompt("ios");
-      } else if (isAndroid || forcePrompt) {
+      } else {
         showPrompt("fallback");
       }
     }, 1400);
@@ -219,8 +263,23 @@
     gap: 0.18rem;
   }
 
-  .pwa-install-copy strong,
-  .pwa-install-copy span {
+  .pwa-install-info {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: flex-start;
+    gap: 0.65rem;
+    min-width: 0;
+  }
+
+  .pwa-install-logo {
+    flex: 0 0 auto;
+    width: 2.75rem;
+    height: 2.75rem;
+    object-fit: contain;
+  }
+
+  .pwa-install-copy > strong,
+  #pwa-install-message {
     overflow: hidden;
     text-overflow: ellipsis;
   }
@@ -230,11 +289,72 @@
     line-height: 1.1;
   }
 
-  .pwa-install-copy span {
+  #pwa-install-message {
     color: #555555;
     font-size: 0.8rem;
     font-weight: 650;
     line-height: 1.25;
+  }
+
+  .ios-install-steps[hidden] {
+    display: none;
+  }
+
+  .ios-install-steps {
+    display: grid;
+    gap: 0.45rem;
+    margin-top: 0.4rem;
+    padding-top: 0.6rem;
+    color: #333333;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    border-top: 1px solid #e4dddd;
+  }
+
+  .ios-install-step {
+    display: grid;
+    grid-template-columns: 1.4rem minmax(0, 1fr);
+    align-items: start;
+    gap: 0.4rem;
+  }
+
+  .ios-install-step > span:last-child {
+    display: inline;
+  }
+
+  .ios-install-step svg {
+    display: inline-block;
+    margin: -0.15rem 0.1rem;
+    color: #7b1113;
+    vertical-align: middle;
+  }
+
+  .ios-step-number {
+    display: grid;
+    place-items: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 850;
+    background: #7b1113;
+    border-radius: 50%;
+  }
+
+  .ios-share-direction {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    margin-top: 0.15rem;
+    color: #7b1113;
+    font-size: 0.7rem;
+    font-weight: 800;
+  }
+
+  .ios-down-arrow {
+    font-size: 1.25rem;
+    line-height: 0.8;
   }
 
   .pwa-install-actions {
@@ -258,6 +378,11 @@
   #pwa-install-action {
     color: #ffffff;
     background: hsl(5, 53%, 32%);
+  }
+
+  #pwa-install-action:disabled {
+    cursor: default;
+    opacity: 0.72;
   }
 
   #pwa-install-close {

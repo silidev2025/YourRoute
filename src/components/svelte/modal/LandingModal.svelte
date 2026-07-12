@@ -15,6 +15,13 @@
 <div class="landing-content">
   <div class="hero-image">
     <div class="hero-overlay">
+      <img
+        class="app-logo"
+        src="/cit-thumbnail.png"
+        alt="CIT-U location logo"
+        width="88"
+        height="88"
+      />
       <h2>YourRoute</h2>
       <p>"Asa sa CIT ang ___?" Finally answered.</p>
     </div>
@@ -66,6 +73,36 @@
         </div>
       </div>
     </div>
+    <!-- Attribution is available from the 3D model picker's Model credits section.
+    <p class="model-credit">
+      3D navigation models by
+      <a
+        href="https://sketchfab.com/3d-models/oiiaioooooiai-cat-30d27bf7fb224849b76e208a6eccdb36"
+        target="_blank"
+        rel="noreferrer">Zhuier</a
+      >,
+      <a
+        href="https://sketchfab.com/3d-models/low-poly-dog-335f2250195c407bac91695fbdd193e1"
+        target="_blank"
+        rel="noreferrer">Rodesqa</a
+      >,
+      <a
+        href="https://sketchfab.com/3d-models/low-poly-bird-animated-82ada91f0ac64ab595fbc3dc994a3590"
+        target="_blank"
+        rel="noreferrer">Charlie Tinley</a
+      >, and
+      <a
+        href="https://sketchfab.com/3d-models/low-poly-rigged-character-free-9dba83ce8a3e4a9ab13bd991e7276621"
+        target="_blank"
+        rel="noreferrer">Legend</a
+      >. Licensed under
+      <a
+        href="https://creativecommons.org/licenses/by/4.0/"
+        target="_blank"
+        rel="noreferrer">CC BY 4.0</a
+      >.
+    </p>
+    -->
 
     <div class="actions">
       <button class="primary-btn" onclick={handleGetStarted}>
@@ -108,6 +145,12 @@
     gap: 0.5rem;
     color: white;
     padding: 2rem;
+  }
+  .app-logo {
+    width: 5.5rem;
+    height: 5.5rem;
+    object-fit: contain;
+    filter: drop-shadow(0 0.35rem 0.7rem rgba(0, 0, 0, 0.2));
   }
   .hero-overlay h2 {
     font-size: 2rem;
@@ -196,6 +239,20 @@
     overflow-wrap: anywhere;
   }
 
+  /* Attribution paragraph is intentionally hidden from this modal.
+  .model-credit {
+    margin: -0.5rem 0 0;
+    color: #666;
+    font-size: 0.7rem;
+    line-height: 1.35;
+  }
+
+  .model-credit a {
+    color: #7b1113;
+    font-weight: 600;
+  }
+  */
+
   .tooltip {
     position: relative;
     outline: unset;
@@ -259,6 +316,11 @@
 
     .hero-overlay {
       padding: 1.25rem 1rem;
+    }
+
+    .app-logo {
+      width: 4rem;
+      height: 4rem;
     }
 
     .hero-overlay h2 {
